@@ -10,10 +10,10 @@ class ProductModel extends HiveObject {
   final String name;
 
   @HiveField(2)
-  final String? nameEn;
+  final String brand; // ماركة الحذاء
 
   @HiveField(3)
-  final String size;
+  final String sizeRange; // نطاق المقاسات مثل 24-36
 
   @HiveField(4)
   final double wholesalePrice;
@@ -36,11 +36,17 @@ class ProductModel extends HiveObject {
   @HiveField(10)
   final String? createdBy;
 
+  @HiveField(11)
+  final int packagesCount; // كمية الطرود
+
+  @HiveField(12)
+  final int pairsPerPackage; // كم جوز يسع الطرد
+
   ProductModel({
     required this.id,
     required this.name,
-    this.nameEn,
-    required this.size,
+    this.brand = '',
+    required this.sizeRange,
     required this.wholesalePrice,
     this.currency = 'USD',
     this.category,
@@ -48,7 +54,15 @@ class ProductModel extends HiveObject {
     this.createdAt,
     this.updatedAt,
     this.createdBy,
+    this.packagesCount = 1,
+    this.pairsPerPackage = 12,
   });
+
+  /// إجمالي الأزواج
+  int get totalPairs => packagesCount * pairsPerPackage;
+
+  /// للتوافق مع الكود القديم
+  String get size => sizeRange;
 
   /// Create from Firestore document
   factory ProductModel.fromFirestore(
@@ -58,8 +72,8 @@ class ProductModel extends HiveObject {
     return ProductModel(
       id: doc.id,
       name: data['name'] ?? '',
-      nameEn: data['nameEn'],
-      size: data['size'] ?? '',
+      brand: data['brand'] ?? '',
+      sizeRange: data['sizeRange'] ?? data['size'] ?? '',
       wholesalePrice: (data['wholesalePrice'] ?? 0).toDouble(),
       currency: data['currency'] ?? 'USD',
       category: data['category'],
@@ -67,6 +81,8 @@ class ProductModel extends HiveObject {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
       createdBy: data['createdBy'],
+      packagesCount: data['packagesCount'] ?? 1,
+      pairsPerPackage: data['pairsPerPackage'] ?? 12,
     );
   }
 
@@ -75,8 +91,8 @@ class ProductModel extends HiveObject {
     return ProductModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      nameEn: json['nameEn'],
-      size: json['size'] ?? '',
+      brand: json['brand'] ?? '',
+      sizeRange: json['sizeRange'] ?? json['size'] ?? '',
       wholesalePrice: (json['wholesalePrice'] ?? 0).toDouble(),
       currency: json['currency'] ?? 'USD',
       category: json['category'],
@@ -86,14 +102,16 @@ class ProductModel extends HiveObject {
       updatedAt:
           json['updatedAt'] != null ? DateTime.parse(json['updatedAt']) : null,
       createdBy: json['createdBy'],
+      packagesCount: json['packagesCount'] ?? 1,
+      pairsPerPackage: json['pairsPerPackage'] ?? 12,
     );
   }
 
   /// Convert to Firestore document
   Map<String, dynamic> toFirestore() => {
         'name': name,
-        'nameEn': nameEn,
-        'size': size,
+        'brand': brand,
+        'sizeRange': sizeRange,
         'wholesalePrice': wholesalePrice,
         'currency': currency,
         'category': category,
@@ -103,14 +121,16 @@ class ProductModel extends HiveObject {
             : FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'createdBy': createdBy,
+        'packagesCount': packagesCount,
+        'pairsPerPackage': pairsPerPackage,
       };
 
   /// Convert to JSON map
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
-        'nameEn': nameEn,
-        'size': size,
+        'brand': brand,
+        'sizeRange': sizeRange,
         'wholesalePrice': wholesalePrice,
         'currency': currency,
         'category': category,
@@ -118,14 +138,16 @@ class ProductModel extends HiveObject {
         'createdAt': createdAt?.toIso8601String(),
         'updatedAt': updatedAt?.toIso8601String(),
         'createdBy': createdBy,
+        'packagesCount': packagesCount,
+        'pairsPerPackage': pairsPerPackage,
       };
 
   /// Create a copy with updated fields
   ProductModel copyWith({
     String? id,
     String? name,
-    String? nameEn,
-    String? size,
+    String? brand,
+    String? sizeRange,
     double? wholesalePrice,
     String? currency,
     String? category,
@@ -133,12 +155,14 @@ class ProductModel extends HiveObject {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? createdBy,
+    int? packagesCount,
+    int? pairsPerPackage,
   }) {
     return ProductModel(
       id: id ?? this.id,
       name: name ?? this.name,
-      nameEn: nameEn ?? this.nameEn,
-      size: size ?? this.size,
+      brand: brand ?? this.brand,
+      sizeRange: sizeRange ?? this.sizeRange,
       wholesalePrice: wholesalePrice ?? this.wholesalePrice,
       currency: currency ?? this.currency,
       category: category ?? this.category,
@@ -146,12 +170,14 @@ class ProductModel extends HiveObject {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       createdBy: createdBy ?? this.createdBy,
+      packagesCount: packagesCount ?? this.packagesCount,
+      pairsPerPackage: pairsPerPackage ?? this.pairsPerPackage,
     );
   }
 
   @override
   String toString() =>
-      'ProductModel(id: $id, name: $name, size: $size, price: $wholesalePrice)';
+      'ProductModel(id: $id, name: $name, brand: $brand, sizeRange: $sizeRange, price: $wholesalePrice)';
 
   @override
   bool operator ==(Object other) =>

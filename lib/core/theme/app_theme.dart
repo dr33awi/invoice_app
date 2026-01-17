@@ -55,23 +55,25 @@ class AppTheme {
         // ═══════════════════════════════════════════════════════════
 
         appBarTheme: AppBarTheme(
-          backgroundColor: AppColors.slate800,
-          foregroundColor: Colors.white,
+          backgroundColor: AppColors.surfaceBg,
+          foregroundColor: AppColors.textPrimary,
           elevation: 0,
-          scrolledUnderElevation: 1,
-          centerTitle: true,
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          titleTextStyle: AppTypography.headlineSmall.copyWith(
-            color: Colors.white,
+          scrolledUnderElevation: 0,
+          centerTitle: false,
+          surfaceTintColor: Colors.transparent,
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          titleTextStyle: AppTypography.titleLarge.copyWith(
+            color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
+            fontSize: 18,
           ),
           iconTheme: const IconThemeData(
-            color: Colors.white,
-            size: 24,
+            color: AppColors.textSecondary,
+            size: 22,
           ),
           actionsIconTheme: const IconThemeData(
-            color: Colors.white,
-            size: 24,
+            color: AppColors.textSecondary,
+            size: 22,
           ),
         ),
 

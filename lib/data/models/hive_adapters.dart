@@ -2,6 +2,8 @@ import 'package:hive/hive.dart';
 import 'product_model.dart';
 import 'invoice_model.dart';
 import 'sync_metadata.dart';
+import 'category_model.dart';
+import 'brand_model.dart';
 
 // ═══════════════════════════════════════════════════════════
 // PRODUCT MODEL ADAPTER
@@ -20,8 +22,8 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
     return ProductModel(
       id: fields[0] as String,
       name: fields[1] as String,
-      nameEn: fields[2] as String?,
-      size: fields[3] as String,
+      brand: fields[2] as String? ?? '',
+      sizeRange: fields[3] as String,
       wholesalePrice: fields[4] as double,
       currency: fields[5] as String? ?? 'USD',
       category: fields[6] as String?,
@@ -29,21 +31,23 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       createdAt: fields[8] as DateTime?,
       updatedAt: fields[9] as DateTime?,
       createdBy: fields[10] as String?,
+      packagesCount: fields[11] as int? ?? 1,
+      pairsPerPackage: fields[12] as int? ?? 12,
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(11)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.nameEn)
+      ..write(obj.brand)
       ..writeByte(3)
-      ..write(obj.size)
+      ..write(obj.sizeRange)
       ..writeByte(4)
       ..write(obj.wholesalePrice)
       ..writeByte(5)
@@ -57,7 +61,11 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(9)
       ..write(obj.updatedAt)
       ..writeByte(10)
-      ..write(obj.createdBy);
+      ..write(obj.createdBy)
+      ..writeByte(11)
+      ..write(obj.packagesCount)
+      ..writeByte(12)
+      ..write(obj.pairsPerPackage);
   }
 
   @override
@@ -175,13 +183,17 @@ class InvoiceItemModelAdapter extends TypeAdapter<InvoiceItemModel> {
       quantity: fields[3] as int,
       unitPrice: fields[4] as double,
       total: fields[5] as double,
+      brand: fields[6] as String? ?? '',
+      packagesCount: fields[7] as int? ?? 1,
+      pairsPerPackage: fields[8] as int? ?? 12,
+      category: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, InvoiceItemModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.productId)
       ..writeByte(1)
@@ -193,7 +205,15 @@ class InvoiceItemModelAdapter extends TypeAdapter<InvoiceItemModel> {
       ..writeByte(4)
       ..write(obj.unitPrice)
       ..writeByte(5)
-      ..write(obj.total);
+      ..write(obj.total)
+      ..writeByte(6)
+      ..write(obj.brand)
+      ..writeByte(7)
+      ..write(obj.packagesCount)
+      ..writeByte(8)
+      ..write(obj.pairsPerPackage)
+      ..writeByte(9)
+      ..write(obj.category);
   }
 
   @override
@@ -366,6 +386,115 @@ class SyncMetadataAdapter extends TypeAdapter<SyncMetadata> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is SyncMetadataAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CATEGORY MODEL ADAPTER
+// ═══════════════════════════════════════════════════════════
+
+class CategoryModelAdapter extends TypeAdapter<CategoryModel> {
+  @override
+  final int typeId = 3;
+
+  @override
+  CategoryModel read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return CategoryModel(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      icon: fields[2] as String?,
+      colorValue: fields[3] as int?,
+      isActive: fields[4] as bool? ?? true,
+      createdAt: fields[5] as DateTime?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, CategoryModel obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.icon)
+      ..writeByte(3)
+      ..write(obj.colorValue)
+      ..writeByte(4)
+      ..write(obj.isActive)
+      ..writeByte(5)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CategoryModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BRAND MODEL ADAPTER
+// ═══════════════════════════════════════════════════════════
+
+class BrandModelAdapter extends TypeAdapter<BrandModel> {
+  @override
+  final int typeId = 4;
+
+  @override
+  BrandModel read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return BrandModel(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      nameEn: fields[2] as String?,
+      logo: fields[3] as String?,
+      country: fields[4] as String?,
+      isActive: fields[5] as bool? ?? true,
+      createdAt: fields[6] as DateTime?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, BrandModel obj) {
+    writer
+      ..writeByte(7)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.nameEn)
+      ..writeByte(3)
+      ..write(obj.logo)
+      ..writeByte(4)
+      ..write(obj.country)
+      ..writeByte(5)
+      ..write(obj.isActive)
+      ..writeByte(6)
+      ..write(obj.createdAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BrandModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

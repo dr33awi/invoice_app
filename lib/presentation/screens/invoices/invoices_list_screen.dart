@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
@@ -8,36 +9,44 @@ import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/invoice_model.dart';
+import '../providers/providers.dart';
 
 class InvoicesListScreen extends ConsumerWidget {
   const InvoicesListScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // TODO: Replace with actual provider
-    final invoices = <InvoiceModel>[];
+    final invoicesAsync = ref.watch(invoicesNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('الفواتير'),
+      appBar: CustomAppBar(
+        title: 'الفواتير',
+        subtitle: 'جميع فواتير المبيعات',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
+          AppBarIconButton(
+            icon: Icons.search,
             onPressed: () {
               // TODO: Implement search
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
+          AppBarIconButton(
+            icon: Icons.filter_list,
             onPressed: () {
               // TODO: Implement filter
             },
           ),
         ],
       ),
-      body: invoices.isEmpty
-          ? _buildEmptyState(context)
-          : ListView.separated(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(invoicesNotifierProvider.notifier).loadInvoices();
+        },
+        child: invoicesAsync.when(
+          data: (invoices) {
+            if (invoices.isEmpty) {
+              return _buildEmptyState(context);
+            }
+            return ListView.separated(
               padding: AppSpacing.paddingScreen,
               itemCount: invoices.length,
               separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
@@ -45,9 +54,47 @@ class InvoicesListScreen extends ConsumerWidget {
                 final invoice = invoices[index];
                 return _InvoiceCard(invoice: invoice);
               },
+            );
+          },
+          loading: () => const Center(
+            child: CircularProgressIndicator(),
+          ),
+          error: (error, _) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: AppColors.error,
+                ),
+                AppSpacing.gapVerticalMd,
+                Text(
+                  'حدث خطأ في تحميل الفواتير',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                AppSpacing.gapVerticalSm,
+                ElevatedButton(
+                  onPressed: () {
+                    ref.read(invoicesNotifierProvider.notifier).loadInvoices();
+                  },
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
             ),
+          ),
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.pushNamed(context, AppRoutes.createInvoice),
+        onPressed: () async {
+          final result = await Navigator.pushNamed(
+            context,
+            AppRoutes.createInvoice,
+          );
+          if (result != null) {
+            ref.read(invoicesNotifierProvider.notifier).loadInvoices();
+          }
+        },
         icon: const Icon(Icons.add),
         label: const Text('فاتورة جديدة'),
       ),
@@ -67,7 +114,7 @@ class InvoicesListScreen extends ConsumerWidget {
           AppSpacing.gapVerticalLg,
           Text(
             'لا توجد فواتير',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),

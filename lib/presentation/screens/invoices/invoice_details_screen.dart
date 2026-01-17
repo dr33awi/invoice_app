@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -11,56 +12,34 @@ import '../../../data/models/invoice_model.dart';
 class InvoiceDetailsScreen extends StatelessWidget {
   final InvoiceModel invoice;
 
-  const InvoiceDetailsScreen({
-    super.key,
-    required this.invoice,
-  });
+  const InvoiceDetailsScreen({super.key, required this.invoice});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(invoice.invoiceNumber),
+      appBar: CustomAppBar(
+        title: invoice.invoiceNumber,
+        subtitle: 'تفاصيل الفاتورة',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: () {
-              // TODO: Generate PDF
-            },
-            tooltip: 'تصدير PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
-            onPressed: () {
-              // TODO: Share invoice
-            },
-            tooltip: 'مشاركة',
-          ),
+          AppBarIconButton(
+              icon: Icons.picture_as_pdf_outlined, onPressed: () {}),
+          AppBarIconButton(icon: Icons.share_outlined, onPressed: () {}),
         ],
       ),
       body: ListView(
         padding: AppSpacing.paddingScreen,
         children: [
-          // Invoice Header Card
           _buildHeaderCard(context),
           AppSpacing.gapVerticalMd,
-
-          // Customer Info Card
           _buildCustomerCard(context),
           AppSpacing.gapVerticalMd,
-
-          // Items Card
           _buildItemsCard(context),
           AppSpacing.gapVerticalMd,
-
-          // Totals Card
           _buildTotalsCard(context),
-
           if (invoice.notes != null && invoice.notes!.isNotEmpty) ...[
             AppSpacing.gapVerticalMd,
             _buildNotesCard(context),
           ],
-
           AppSpacing.gapVerticalXl,
         ],
       ),
@@ -69,28 +48,37 @@ class InvoiceDetailsScreen extends StatelessWidget {
 
   Widget _buildHeaderCard(BuildContext context) {
     return Card(
-      color: AppColors.slate800,
       child: Padding(
         padding: AppSpacing.paddingCard,
         child: Row(
           children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.blue600.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.receipt_long,
+                  color: AppColors.blue600, size: 24),
+            ),
+            AppSpacing.gapHorizontalMd,
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'فاتورة بيع',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                   AppSpacing.gapVerticalXs,
                   Text(
                     invoice.invoiceNumber,
-                    style: AppTypography.codeSmall.copyWith(
-                      color: Colors.white70,
-                    ),
+                    style: AppTypography.codeSmall
+                        .copyWith(color: AppColors.blue600),
                   ),
                 ],
               ),
@@ -100,15 +88,14 @@ class InvoiceDetailsScreen extends StatelessWidget {
               children: [
                 Text(
                   'التاريخ',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.textMuted),
                 ),
                 Text(
                   DateFormatter.formatDateAr(invoice.date),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Colors.white,
-                      ),
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
               ],
             ),
@@ -127,25 +114,24 @@ class InvoiceDetailsScreen extends StatelessWidget {
           children: [
             Text(
               'معلومات العميل',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             AppSpacing.gapVerticalSm,
             Row(
               children: [
-                Icon(
-                  Icons.person_outline,
-                  size: 20,
-                  color: AppColors.textSecondary,
-                ),
+                const Icon(Icons.person_outline,
+                    size: 20, color: AppColors.textSecondary),
                 AppSpacing.gapHorizontalSm,
                 Expanded(
                   child: Text(
                     invoice.customerName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -154,16 +140,11 @@ class InvoiceDetailsScreen extends StatelessWidget {
               AppSpacing.gapVerticalXs,
               Row(
                 children: [
-                  Icon(
-                    Icons.phone_outlined,
-                    size: 20,
-                    color: AppColors.textSecondary,
-                  ),
+                  const Icon(Icons.phone_outlined,
+                      size: 20, color: AppColors.textSecondary),
                   AppSpacing.gapHorizontalSm,
-                  Text(
-                    invoice.customerPhone!,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+                  Text(invoice.customerPhone!,
+                      style: Theme.of(context).textTheme.bodyMedium),
                 ],
               ),
             ],
@@ -185,24 +166,22 @@ class InvoiceDetailsScreen extends StatelessWidget {
               children: [
                 Text(
                   'المنتجات',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(color: AppColors.textSecondary),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
                     color: AppColors.blue600.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     '${invoice.totalItemCount} قطعة',
-                    style: AppTypography.labelSmall.copyWith(
-                      color: AppColors.blue600,
-                    ),
+                    style: AppTypography.labelSmall
+                        .copyWith(color: AppColors.blue600),
                   ),
                 ),
               ],
@@ -210,7 +189,7 @@ class InvoiceDetailsScreen extends StatelessWidget {
             AppSpacing.gapVerticalSm,
             // Table Header
             Container(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               decoration: BoxDecoration(
                 color: AppColors.screenBg,
                 borderRadius: BorderRadius.circular(4),
@@ -219,84 +198,64 @@ class InvoiceDetailsScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text(
-                      'المنتج',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('المنتج',
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.textSecondary)),
                   ),
                   Expanded(
-                    child: Text(
-                      'المقاس',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('المقاس',
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center),
                   ),
                   Expanded(
-                    child: Text(
-                      'الكمية',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('الكمية',
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.textSecondary),
+                        textAlign: TextAlign.center),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text(
-                      'المجموع',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                    child: Text('المجموع',
+                        style: AppTypography.labelSmall
+                            .copyWith(color: AppColors.textSecondary),
+                        textAlign: TextAlign.end),
                   ),
                 ],
               ),
             ),
-            // Table Items
+            // Items
             ...invoice.items.map((item) => Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
                   decoration: const BoxDecoration(
                     border: Border(
-                      bottom: BorderSide(color: AppColors.borderColor),
-                    ),
+                        bottom: BorderSide(color: AppColors.borderColor)),
                   ),
                   child: Row(
                     children: [
                       Expanded(
                         flex: 3,
-                        child: Text(
-                          item.productName,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                        child: Text(item.productName,
+                            style: Theme.of(context).textTheme.bodyMedium),
                       ),
                       Expanded(
-                        child: Text(
-                          item.size,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          textAlign: TextAlign.center,
-                        ),
+                        child: Text(item.size,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center),
                       ),
                       Expanded(
-                        child: Text(
-                          item.quantity.toString(),
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          textAlign: TextAlign.center,
-                        ),
+                        child: Text(item.quantity.toString(),
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center),
                       ),
                       Expanded(
                         flex: 2,
                         child: Text(
                           CurrencyFormatter.formatUSD(item.total),
-                          style: AppTypography.moneySmall.copyWith(
-                            color: AppColors.textPrimary,
-                          ),
-                          textAlign: TextAlign.center,
+                          style: AppTypography.moneySmall
+                              .copyWith(color: AppColors.textPrimary),
+                          textAlign: TextAlign.end,
                         ),
                       ),
                     ],
@@ -314,41 +273,29 @@ class InvoiceDetailsScreen extends StatelessWidget {
         padding: AppSpacing.paddingCard,
         child: Column(
           children: [
-            _buildTotalRow(
-              context,
-              'المجموع الفرعي',
-              CurrencyFormatter.formatUSD(invoice.subtotal),
-            ),
+            _buildTotalRow(context, 'المجموع الفرعي',
+                CurrencyFormatter.formatUSD(invoice.subtotal)),
             if (invoice.discount > 0) ...[
               AppSpacing.gapVerticalXs,
-              _buildTotalRow(
-                context,
-                'الخصم',
-                '- ${CurrencyFormatter.formatUSD(invoice.discount)}',
-                valueColor: AppColors.error,
-              ),
+              _buildTotalRow(context, 'الخصم',
+                  '- ${CurrencyFormatter.formatUSD(invoice.discount)}',
+                  valueColor: AppColors.error),
             ],
             const Divider(height: 24),
-            _buildTotalRow(
-              context,
-              'الإجمالي (USD)',
-              CurrencyFormatter.formatUSD(invoice.totalUSD),
-              isBold: true,
-            ),
+            _buildTotalRow(context, 'الإجمالي (USD)',
+                CurrencyFormatter.formatUSD(invoice.totalUSD),
+                isBold: true),
             AppSpacing.gapVerticalSm,
-            _buildTotalRow(
-              context,
-              'الإجمالي (SYP)',
-              CurrencyFormatter.formatSYP(invoice.totalSYP),
-              isBold: true,
-              valueColor: AppColors.teal600,
-            ),
+            _buildTotalRow(context, 'الإجمالي (SYP)',
+                CurrencyFormatter.formatSYP(invoice.totalSYP),
+                isBold: true, valueColor: AppColors.teal600),
             AppSpacing.gapVerticalSm,
             Text(
               'سعر الصرف: ${NumberFormat('#,###').format(invoice.exchangeRate)} ل.س/دولار',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textMuted),
             ),
           ],
         ),
@@ -356,13 +303,8 @@ class InvoiceDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalRow(
-    BuildContext context,
-    String label,
-    String value, {
-    bool isBold = false,
-    Color? valueColor,
-  }) {
+  Widget _buildTotalRow(BuildContext context, String label, String value,
+      {bool isBold = false, Color? valueColor}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -393,15 +335,13 @@ class InvoiceDetailsScreen extends StatelessWidget {
           children: [
             Text(
               'ملاحظات',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: AppColors.textSecondary),
             ),
             AppSpacing.gapVerticalSm,
-            Text(
-              invoice.notes!,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text(invoice.notes!, style: Theme.of(context).textTheme.bodyMedium),
           ],
         ),
       ),

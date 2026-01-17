@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 
 @HiveType(typeId: 1)
@@ -70,34 +69,6 @@ class InvoiceModel extends HiveObject {
     this.createdBy,
   });
 
-  /// Create from Firestore document
-  factory InvoiceModel.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
-    final data = doc.data()!;
-    return InvoiceModel(
-      id: doc.id,
-      invoiceNumber: data['invoiceNumber'] ?? '',
-      customerName: data['customerName'] ?? '',
-      customerPhone: data['customerPhone'],
-      date: (data['date'] as Timestamp).toDate(),
-      items: (data['items'] as List<dynamic>?)
-              ?.map((item) => InvoiceItemModel.fromJson(item))
-              .toList() ??
-          [],
-      subtotal: (data['subtotal'] ?? 0).toDouble(),
-      discount: (data['discount'] ?? 0).toDouble(),
-      totalUSD: (data['totalUSD'] ?? 0).toDouble(),
-      exchangeRate: (data['exchangeRate'] ?? 0).toDouble(),
-      totalSYP: (data['totalSYP'] ?? 0).toDouble(),
-      status: data['status'] ?? 'completed',
-      notes: data['notes'],
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
-      createdBy: data['createdBy'],
-    );
-  }
-
   /// Create from JSON map
   factory InvoiceModel.fromJson(Map<String, dynamic> json) {
     return InvoiceModel(
@@ -107,7 +78,7 @@ class InvoiceModel extends HiveObject {
       customerPhone: json['customerPhone'],
       date: json['date'] is String
           ? DateTime.parse(json['date'])
-          : (json['date'] as Timestamp).toDate(),
+          : json['date'] as DateTime,
       items: (json['items'] as List<dynamic>?)
               ?.map((item) => InvoiceItemModel.fromJson(item))
               .toList() ??
@@ -126,27 +97,6 @@ class InvoiceModel extends HiveObject {
       createdBy: json['createdBy'],
     );
   }
-
-  /// Convert to Firestore document
-  Map<String, dynamic> toFirestore() => {
-        'invoiceNumber': invoiceNumber,
-        'customerName': customerName,
-        'customerPhone': customerPhone,
-        'date': Timestamp.fromDate(date),
-        'items': items.map((item) => item.toJson()).toList(),
-        'subtotal': subtotal,
-        'discount': discount,
-        'totalUSD': totalUSD,
-        'exchangeRate': exchangeRate,
-        'totalSYP': totalSYP,
-        'status': status,
-        'notes': notes,
-        'createdAt': createdAt != null
-            ? Timestamp.fromDate(createdAt!)
-            : FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'createdBy': createdBy,
-      };
 
   /// Convert to JSON map
   Map<String, dynamic> toJson() => {
@@ -224,16 +174,28 @@ class InvoiceItemModel extends HiveObject {
   final String productName;
 
   @HiveField(2)
-  final String size;
+  final String size; // نطاق المقاسات
 
   @HiveField(3)
-  final int quantity;
+  final int quantity; // إجمالي الأزواج
 
   @HiveField(4)
   final double unitPrice;
 
   @HiveField(5)
   final double total;
+
+  @HiveField(6)
+  final String brand; // الماركة
+
+  @HiveField(7)
+  final int packagesCount; // عدد الطرود
+
+  @HiveField(8)
+  final int pairsPerPackage; // جوز/طرد
+
+  @HiveField(9)
+  final String? category; // الفئة
 
   InvoiceItemModel({
     required this.productId,
@@ -242,6 +204,10 @@ class InvoiceItemModel extends HiveObject {
     required this.quantity,
     required this.unitPrice,
     required this.total,
+    this.brand = '',
+    this.packagesCount = 1,
+    this.pairsPerPackage = 12,
+    this.category,
   });
 
   factory InvoiceItemModel.fromJson(Map<String, dynamic> json) {
@@ -252,6 +218,10 @@ class InvoiceItemModel extends HiveObject {
       quantity: json['quantity'] ?? 0,
       unitPrice: (json['unitPrice'] ?? 0).toDouble(),
       total: (json['total'] ?? 0).toDouble(),
+      brand: json['brand'] ?? '',
+      packagesCount: json['packagesCount'] ?? 1,
+      pairsPerPackage: json['pairsPerPackage'] ?? 12,
+      category: json['category'],
     );
   }
 
@@ -262,6 +232,10 @@ class InvoiceItemModel extends HiveObject {
         'quantity': quantity,
         'unitPrice': unitPrice,
         'total': total,
+        'brand': brand,
+        'packagesCount': packagesCount,
+        'pairsPerPackage': pairsPerPackage,
+        'category': category,
       };
 
   InvoiceItemModel copyWith({
@@ -271,6 +245,10 @@ class InvoiceItemModel extends HiveObject {
     int? quantity,
     double? unitPrice,
     double? total,
+    String? brand,
+    int? packagesCount,
+    int? pairsPerPackage,
+    String? category,
   }) {
     return InvoiceItemModel(
       productId: productId ?? this.productId,
@@ -279,6 +257,10 @@ class InvoiceItemModel extends HiveObject {
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
       total: total ?? this.total,
+      brand: brand ?? this.brand,
+      packagesCount: packagesCount ?? this.packagesCount,
+      pairsPerPackage: pairsPerPackage ?? this.pairsPerPackage,
+      category: category ?? this.category,
     );
   }
 }

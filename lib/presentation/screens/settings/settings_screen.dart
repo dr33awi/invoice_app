@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
@@ -11,13 +12,13 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإعدادات'),
+      appBar: CustomAppBar(
+        title: 'الإعدادات',
+        subtitle: 'إدارة إعدادات التطبيق',
       ),
       body: ListView(
         padding: AppSpacing.paddingScreen,
         children: [
-          // Exchange Rate Section
           _buildSection(
             context,
             title: 'العملة',
@@ -33,8 +34,6 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
           AppSpacing.gapVerticalMd,
-
-          // Data Section
           _buildSection(
             context,
             title: 'البيانات',
@@ -44,36 +43,26 @@ class SettingsScreen extends ConsumerWidget {
                 iconColor: AppColors.blue600,
                 title: 'المزامنة',
                 subtitle: 'مزامنة البيانات مع السحابة',
-                onTap: () {
-                  // TODO: Trigger sync
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('جاري المزامنة...')),
-                  );
-                },
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('جاري المزامنة...'))),
               ),
               _SettingsTile(
                 icon: Icons.backup_outlined,
                 iconColor: AppColors.warning,
                 title: 'النسخ الاحتياطي',
                 subtitle: 'تصدير البيانات',
-                onTap: () {
-                  // TODO: Export backup
-                },
+                onTap: () {},
               ),
               _SettingsTile(
                 icon: Icons.restore_outlined,
                 iconColor: AppColors.success,
                 title: 'استعادة البيانات',
                 subtitle: 'استيراد نسخة احتياطية',
-                onTap: () {
-                  // TODO: Import backup
-                },
+                onTap: () {},
               ),
             ],
           ),
           AppSpacing.gapVerticalMd,
-
-          // App Info Section
           _buildSection(
             context,
             title: 'حول التطبيق',
@@ -85,13 +74,6 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: '1.0.0',
                 onTap: null,
               ),
-              _SettingsTile(
-                icon: Icons.code,
-                iconColor: AppColors.textSecondary,
-                title: 'المطور',
-                subtitle: 'نظام فواتير الأحذية',
-                onTap: null,
-              ),
             ],
           ),
         ],
@@ -99,29 +81,18 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSection(
-    BuildContext context, {
-    required String title,
-    required List<Widget> children,
-  }) {
+  Widget _buildSection(BuildContext context,
+      {required String title, required List<Widget> children}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(right: 4, bottom: 8),
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
+          child: Text(title,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
         ),
-        Card(
-          child: Column(
-            children: children,
-          ),
-        ),
+        Card(child: Column(children: children)),
       ],
     );
   }
@@ -134,13 +105,12 @@ class _SettingsTile extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
 
-  const _SettingsTile({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-  });
+  const _SettingsTile(
+      {required this.icon,
+      required this.iconColor,
+      required this.title,
+      required this.subtitle,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -149,18 +119,14 @@ class _SettingsTile extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
+            color: iconColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8)),
         child: Icon(icon, color: iconColor, size: 22),
       ),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: onTap != null
-          ? const Icon(
-              Icons.chevron_left,
-              color: AppColors.textMuted,
-            )
+          ? const Icon(Icons.chevron_left, color: AppColors.textMuted)
           : null,
       onTap: onTap,
     );
