@@ -65,8 +65,6 @@ class PdfService {
     String companySubtitle = 'للأحذية بالجملة',
     String? companyPhone,
     String companyAddress = 'سوريا',
-    String returnPolicy =
-        'الإستبدال والإسترجاع خلال فترة الـ 14 يوم من تاريخ أستلام السلعة .',
     double paidAmount = 0,
   }) async {
     await _loadFonts();
@@ -74,8 +72,10 @@ class PdfService {
     final pdf = pw.Document();
     final dateFormat = DateFormat('yyyy/MM/dd', 'en');
     final decimalFormat = NumberFormat('#,##0.00', 'en');
+    final numberFormat = NumberFormat('#,###', 'en');
 
-    final totalAfterPaid = invoice.totalUSD - paidAmount + invoice.discount;
+    // الإجمالي النهائي بعد خصم العربون
+    final amountDue = invoice.totalUSD - paidAmount;
 
     pdf.addPage(
       pw.Page(
@@ -104,8 +104,8 @@ class PdfService {
                   child: _buildCustomerInfo(
                     customerName: invoice.customerName,
                     customerPhone: invoice.customerPhone,
-                    customerAddress: companyAddress,
                     companyPhone: companyPhone,
+                    companyAddress: companyAddress,
                   ),
                 ),
 
@@ -131,10 +131,12 @@ class PdfService {
                     subtotal: invoice.subtotal,
                     paidAmount: paidAmount,
                     discount: invoice.discount,
-                    total: totalAfterPaid,
-                    returnPolicy: returnPolicy,
+                    total: amountDue,
+                    totalSYP: invoice.totalSYP,
+                    exchangeRate: invoice.exchangeRate,
                     notes: invoice.notes,
                     decimalFormat: decimalFormat,
+                    numberFormat: numberFormat,
                   ),
                 ),
 
@@ -328,8 +330,8 @@ class PdfService {
   static pw.Widget _buildCustomerInfo({
     required String customerName,
     String? customerPhone,
-    required String customerAddress,
     String? companyPhone,
+    required String companyAddress,
   }) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -341,7 +343,7 @@ class PdfService {
             children: [
               _buildInfoRowLTR('رقم الهاتف', companyPhone ?? ''),
               pw.SizedBox(height: 6),
-              _buildInfoRowLTR('العنوان', customerAddress),
+              _buildInfoRowLTR('العنوان', companyAddress),
             ],
           ),
         ),
@@ -354,8 +356,6 @@ class PdfService {
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               _buildInfoRowRTL('اسم العميل', customerName),
-              pw.SizedBox(height: 6),
-              _buildInfoRowRTL('العنوان', ''),
               pw.SizedBox(height: 6),
               _buildInfoRowRTL('رقم الهاتف', customerPhone ?? ''),
             ],
@@ -438,14 +438,15 @@ class PdfService {
   }) {
     return pw.Table(
       border: pw.TableBorder.all(color: _borderGray, width: 0.5),
-      // ترتيب الأعمدة من اليمين لليسار
+      // ترتيب الأعمدة من اليسار لليمين (RTL يعكسها)
       columnWidths: {
-        0: const pw.FixedColumnWidth(50), // اجمالي
-        1: const pw.FixedColumnWidth(45), // الكمية
-        2: const pw.FixedColumnWidth(60), // سعر الوحدة
-        3: const pw.FixedColumnWidth(55), // المقاس
-        4: const pw.FlexColumnWidth(2.5), // أسم المنتج
-        5: const pw.FixedColumnWidth(40), // الرقم
+        0: const pw.FixedColumnWidth(55), // اجمالي
+        1: const pw.FixedColumnWidth(35), // جوز
+        2: const pw.FixedColumnWidth(35), // طرد
+        3: const pw.FixedColumnWidth(50), // سعر الوحدة
+        4: const pw.FixedColumnWidth(45), // المقاس
+        5: const pw.FlexColumnWidth(2), // أسم المنتج
+        6: const pw.FixedColumnWidth(30), // الرقم
       },
       children: [
         // رأس الجدول - أسود
@@ -453,11 +454,12 @@ class PdfService {
           decoration: pw.BoxDecoration(color: _black),
           children: [
             _tableHeader('اجمالي'),
-            _tableHeader('الكمية'),
-            _tableHeader('سعر الوحدة'),
+            _tableHeader('جوز'),
+            _tableHeader('طرد'),
+            _tableHeader('السعر'),
             _tableHeader('المقاس'),
             _tableHeader('أسم المنتج'),
-            _tableHeader('الرقم'),
+            _tableHeader('م'),
           ],
         ),
         // صفوف البيانات
@@ -471,6 +473,7 @@ class PdfService {
             children: [
               _tableCell('\$${decimalFormat.format(item.total)}'),
               _tableCell('${item.quantity}'),
+              _tableCell('${item.packagesCount}'),
               _tableCell('\$${decimalFormat.format(item.unitPrice)}'),
               _tableCell(item.size),
               _tableCell(item.productName, isArabic: true),
@@ -484,14 +487,14 @@ class PdfService {
 
   static pw.Widget _tableHeader(String text) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       alignment: pw.Alignment.center,
       child: pw.Text(
         text,
         style: pw.TextStyle(
           font: _arabicBold,
           fontFallback: _fontFallback,
-          fontSize: 10,
+          fontSize: 9,
           color: _white,
         ),
         textAlign: pw.TextAlign.center,
@@ -502,14 +505,14 @@ class PdfService {
 
   static pw.Widget _tableCell(String text, {bool isArabic = false}) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 10),
       alignment: pw.Alignment.center,
       child: pw.Text(
         text,
         style: pw.TextStyle(
           font: isArabic ? _arabicRegular : _mono,
           fontFallback: _fontFallback,
-          fontSize: 10,
+          fontSize: 9,
           color: _black,
         ),
         textAlign: pw.TextAlign.center,
@@ -527,9 +530,11 @@ class PdfService {
     required double paidAmount,
     required double discount,
     required double total,
-    required String returnPolicy,
+    required double totalSYP,
+    required double exchangeRate,
     String? notes,
     required NumberFormat decimalFormat,
+    required NumberFormat numberFormat,
   }) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -540,12 +545,24 @@ class PdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
+              // الإجمالي الفرعي
+              _buildSummaryRow(
+                  'الاجمالي', '\$${decimalFormat.format(subtotal)}'),
+              pw.SizedBox(height: 8),
+
+              // الخصم (إذا كان موجوداً)
+              if (discount > 0) ...[
+                _buildSummaryRow(
+                    'الخصم', '-\$${decimalFormat.format(discount)}'),
+                pw.SizedBox(height: 8),
+              ],
+
               // العربون المقبوض
               _buildSummaryRow(
                   'العربون المقبوض', '\$${decimalFormat.format(paidAmount)}'),
               pw.SizedBox(height: 12),
 
-              // مربع الإجمالي الأصفر
+              // مربع الإجمالي الأصفر (المبلغ المستحق بالدولار)
               pw.Container(
                 padding:
                     const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 10),
@@ -567,7 +584,7 @@ class PdfService {
                     ),
                     pw.SizedBox(width: 30),
                     pw.Text(
-                      'الاجمالي',
+                      'المستحق',
                       style: pw.TextStyle(
                         font: _arabicBold,
                         fontFallback: _fontFallback,
@@ -578,6 +595,59 @@ class PdfService {
                     ),
                   ],
                 ),
+              ),
+
+              pw.SizedBox(height: 10),
+
+              // الإجمالي بالليرة السورية
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                decoration: pw.BoxDecoration(
+                  color: _lightGray,
+                  borderRadius: pw.BorderRadius.circular(3),
+                  border: pw.Border.all(color: _borderGray),
+                ),
+                child: pw.Row(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  children: [
+                    pw.Text(
+                      '${numberFormat.format(totalSYP)} ل.س',
+                      style: pw.TextStyle(
+                        font: _arabicBold,
+                        fontFallback: _fontFallback,
+                        fontSize: 12,
+                        color: _black,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                    pw.SizedBox(width: 20),
+                    pw.Text(
+                      'بالسورية',
+                      style: pw.TextStyle(
+                        font: _arabicRegular,
+                        fontFallback: _fontFallback,
+                        fontSize: 10,
+                        color: _mediumGray,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ),
+
+              pw.SizedBox(height: 6),
+
+              // سعر الصرف
+              pw.Text(
+                'سعر الصرف: ${numberFormat.format(exchangeRate)} ل.س',
+                style: pw.TextStyle(
+                  font: _arabicRegular,
+                  fontFallback: _fontFallback,
+                  fontSize: 8,
+                  color: _mediumGray,
+                ),
+                textDirection: pw.TextDirection.rtl,
               ),
             ],
           ),
@@ -591,30 +661,18 @@ class PdfService {
           child: pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text(
-                'ملاحظة:',
-                style: pw.TextStyle(
-                  font: _arabicBold,
-                  fontFallback: _fontFallback,
-                  fontSize: 11,
-                  color: _black,
-                ),
-                textDirection: pw.TextDirection.rtl,
-              ),
-              pw.SizedBox(height: 8),
-              pw.Text(
-                returnPolicy,
-                style: pw.TextStyle(
-                  font: _arabicRegular,
-                  fontFallback: _fontFallback,
-                  fontSize: 10,
-                  color: _mediumGray,
-                ),
-                textDirection: pw.TextDirection.rtl,
-                textAlign: pw.TextAlign.right,
-              ),
               if (notes != null && notes.isNotEmpty) ...[
-                pw.SizedBox(height: 10),
+                pw.Text(
+                  'ملاحظة:',
+                  style: pw.TextStyle(
+                    font: _arabicBold,
+                    fontFallback: _fontFallback,
+                    fontSize: 11,
+                    color: _black,
+                  ),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+                pw.SizedBox(height: 8),
                 pw.Text(
                   notes,
                   style: pw.TextStyle(
@@ -696,7 +754,7 @@ class PdfService {
           ),
           pw.SizedBox(height: 5),
           pw.Text(
-            '4444444444444',
+            invoiceNumber,
             style: pw.TextStyle(
               font: _mono,
               fontSize: 9,
