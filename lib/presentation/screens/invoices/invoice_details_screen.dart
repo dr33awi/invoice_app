@@ -13,7 +13,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../core/utils/date_formatter.dart';
 import '../../../core/services/pdf_service.dart';
 import '../../../core/theme/widgets/custom_app_bar.dart';
 import '../../../data/models/invoice_model.dart';
@@ -32,6 +31,11 @@ class InvoiceDetailsScreen extends ConsumerStatefulWidget {
 
 class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
   bool _isGeneratingPdf = false;
+
+  // تنسيقات الأرقام الإنجليزية
+  final _dateFormat = DateFormat('yyyy/MM/dd', 'en');
+  final _timeFormat = DateFormat('hh:mm a', 'en');
+  final _numberFormat = NumberFormat('#,###', 'en');
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +234,9 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
     setState(() => _isGeneratingPdf = true);
 
     try {
+      print('🔵 Starting PDF generation for preview...');
       final pdfData = await PdfService.generateInvoice(widget.invoice);
+      print('🔵 PDF generated successfully, size: ${pdfData.length} bytes');
 
       if (!mounted) return;
 
@@ -264,7 +270,9 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error generating PDF: $e');
+      print('❌ Stack trace: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -281,13 +289,17 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
     setState(() => _isGeneratingPdf = true);
 
     try {
+      print('🔵 Starting PDF generation for print...');
       final pdfData = await PdfService.generateInvoice(widget.invoice);
+      print('🔵 PDF generated successfully');
 
       await Printing.layoutPdf(
         onLayout: (format) async => pdfData,
         name: widget.invoice.invoiceNumber,
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error printing PDF: $e');
+      print('❌ Stack trace: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -304,11 +316,15 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
     setState(() => _isGeneratingPdf = true);
 
     try {
+      print('🔵 Starting PDF generation for save...');
       final pdfData = await PdfService.generateInvoice(widget.invoice);
+      print('🔵 PDF generated successfully');
+
       final directory = await getApplicationDocumentsDirectory();
       final filePath = '${directory.path}/${widget.invoice.invoiceNumber}.pdf';
       final file = File(filePath);
       await file.writeAsBytes(pdfData);
+      print('🔵 PDF saved to: $filePath');
 
       if (!mounted) return;
 
@@ -330,7 +346,9 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error saving PDF: $e');
+      print('❌ Stack trace: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -347,20 +365,31 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
     setState(() => _isGeneratingPdf = true);
 
     try {
+      print('🔵 Starting PDF generation for share...');
       final pdfData = await PdfService.generateInvoice(widget.invoice);
+      print('🔵 PDF generated successfully, size: ${pdfData.length} bytes');
 
       final directory = await getTemporaryDirectory();
+      print('🔵 Temp directory: ${directory.path}');
+
       final filePath = '${directory.path}/${widget.invoice.invoiceNumber}.pdf';
       final file = File(filePath);
-      await file.writeAsBytes(pdfData);
 
+      print('🔵 Writing file...');
+      await file.writeAsBytes(pdfData);
+      print('🔵 File written successfully');
+
+      print('🔵 Starting share...');
       await Share.shareXFiles(
         [XFile(filePath)],
         text:
             'فاتورة رقم ${widget.invoice.invoiceNumber}\nالعميل: ${widget.invoice.customerName}\nالإجمالي: \$${widget.invoice.totalUSD.toStringAsFixed(2)}',
         subject: 'فاتورة ${widget.invoice.invoiceNumber}',
       );
-    } catch (e) {
+      print('🔵 Share completed');
+    } catch (e, stackTrace) {
+      print('❌ Error sharing PDF: $e');
+      print('❌ Stack trace: $stackTrace');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -691,7 +720,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                     context,
                     icon: Icons.calendar_today_outlined,
                     label: 'التاريخ',
-                    value: DateFormatter.formatDateAr(widget.invoice.date),
+                    value: _dateFormat.format(widget.invoice.date),
                     color: AppColors.blue600,
                   ),
                 ),
@@ -701,8 +730,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                     context,
                     icon: Icons.access_time,
                     label: 'الوقت',
-                    value:
-                        DateFormat('hh:mm a', 'ar').format(widget.invoice.date),
+                    value: _timeFormat.format(widget.invoice.date),
                     color: AppColors.statusOnHold,
                   ),
                 ),
@@ -1129,7 +1157,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                       size: 16, color: AppColors.textMuted),
                   AppSpacing.gapHorizontalSm,
                   Text(
-                    'سعر الصرف: ${NumberFormat('#,###').format(widget.invoice.exchangeRate)} ل.س/دولار',
+                    'سعر الصرف: ${_numberFormat.format(widget.invoice.exchangeRate)} ل.س/دولار',
                     style: Theme.of(context)
                         .textTheme
                         .bodySmall

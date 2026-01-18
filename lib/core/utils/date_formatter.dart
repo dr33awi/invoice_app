@@ -4,24 +4,24 @@ import 'package:intl/intl.dart';
 class DateFormatter {
   DateFormatter._();
 
-  /// Format date as yyyy/MM/dd
+  /// Format date as yyyy/MM/dd (English numbers)
   static String formatDate(DateTime date) {
-    return DateFormat('yyyy/MM/dd').format(date);
+    return DateFormat('yyyy/MM/dd', 'en').format(date);
   }
 
-  /// Format date as dd/MM/yyyy (Arabic style)
+  /// Format date as dd/MM/yyyy (English numbers for compatibility)
   static String formatDateAr(DateTime date) {
-    return DateFormat('dd/MM/yyyy', 'ar').format(date);
+    return DateFormat('dd/MM/yyyy', 'en').format(date);
   }
 
-  /// Format date with time
+  /// Format date with time (English numbers)
   static String formatDateTime(DateTime date) {
-    return DateFormat('yyyy/MM/dd HH:mm').format(date);
+    return DateFormat('yyyy/MM/dd HH:mm', 'en').format(date);
   }
 
-  /// Format date with time (Arabic)
+  /// Format date with time (English numbers)
   static String formatDateTimeAr(DateTime date) {
-    return DateFormat('dd/MM/yyyy HH:mm', 'ar').format(date);
+    return DateFormat('dd/MM/yyyy HH:mm', 'en').format(date);
   }
 
   /// Format as relative time (e.g., "منذ 5 دقائق")
@@ -42,19 +42,33 @@ class DateFormatter {
     }
   }
 
-  /// Format month and year
+  /// Format month and year (Arabic month names, English numbers)
   static String formatMonthYear(DateTime date) {
-    return DateFormat('MMMM yyyy', 'ar').format(date);
+    final months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر'
+    ];
+    return '${months[date.month - 1]} ${date.year}';
   }
 
-  /// Format time only
+  /// Format time only (English numbers)
   static String formatTime(DateTime date) {
-    return DateFormat('HH:mm').format(date);
+    return DateFormat('HH:mm', 'en').format(date);
   }
 
-  /// Format time with AM/PM
+  /// Format time with AM/PM (English numbers)
   static String formatTimeAmPm(DateTime date) {
-    return DateFormat('hh:mm a', 'ar').format(date);
+    return DateFormat('hh:mm a', 'en').format(date);
   }
 
   /// Get start of day
