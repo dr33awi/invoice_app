@@ -1,5 +1,5 @@
 import 'package:hive/hive.dart';
-import '../customer_model.dart';
+import '../models/customer_model.dart';
 
 class CustomerRepository {
   final Box<CustomerModel> _box;

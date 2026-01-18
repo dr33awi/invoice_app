@@ -12,10 +12,13 @@ import '../../../data/models/invoice_model.dart';
 import '../../../data/models/product_model.dart';
 import '../../../data/models/brand_model.dart';
 import '../../../data/models/category_model.dart';
+import '../../../data/models/customer_model.dart';
 import '../providers/providers.dart';
 
 class CreateInvoiceScreen extends ConsumerStatefulWidget {
-  const CreateInvoiceScreen({super.key});
+  final InvoiceModel? invoice; // الفاتورة للتعديل (اختياري)
+
+  const CreateInvoiceScreen({super.key, this.invoice});
 
   @override
   ConsumerState<CreateInvoiceScreen> createState() =>
@@ -24,13 +27,17 @@ class CreateInvoiceScreen extends ConsumerStatefulWidget {
 
 class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _customerController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _notesController = TextEditingController();
   final _discountController = TextEditingController(text: '0');
 
+  // بيانات العميل المختار
+  CustomerModel? _selectedCustomer;
+  String? _customerName;
+  String? _customerPhone;
+
   List<InvoiceItemModel> _items = [];
   bool _isSaving = false;
+  bool _isEditing = false;
 
   double get _subtotal => _items.fold(0, (sum, item) => sum + item.total);
   double get _discount => double.tryParse(_discountController.text) ?? 0;
@@ -38,9 +45,26 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   int get _totalQuantity => _items.fold(0, (sum, item) => sum + item.quantity);
 
   @override
+  void initState() {
+    super.initState();
+    // تحميل بيانات الفاتورة إذا كانت للتعديل
+    if (widget.invoice != null) {
+      _isEditing = true;
+      _loadInvoiceData();
+    }
+  }
+
+  void _loadInvoiceData() {
+    final invoice = widget.invoice!;
+    _customerName = invoice.customerName;
+    _customerPhone = invoice.customerPhone;
+    _items = List.from(invoice.items);
+    _discountController.text = invoice.discount.toString();
+    _notesController.text = invoice.notes ?? '';
+  }
+
+  @override
   void dispose() {
-    _customerController.dispose();
-    _phoneController.dispose();
     _notesController.dispose();
     _discountController.dispose();
     super.dispose();
@@ -54,11 +78,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'فاتورة جديدة',
-        subtitle: 'إنشاء فاتورة مبيعات',
+        title: _isEditing ? 'تعديل الفاتورة' : 'فاتورة جديدة',
+        subtitle:
+            _isEditing ? widget.invoice!.invoiceNumber : 'إنشاء فاتورة مبيعات',
         actions: [
           AppBarTextButton(
-            text: 'حفظ',
+            text: _isEditing ? 'تحديث' : 'حفظ',
             icon: Icons.save_outlined,
             isLoading: _isSaving,
             onPressed: () => _saveInvoice(exchangeRate),
@@ -107,32 +132,371 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                   ?.copyWith(fontWeight: FontWeight.w600),
             ),
             AppSpacing.gapVerticalMd,
-            TextFormField(
-              controller: _customerController,
-              decoration: const InputDecoration(
-                labelText: 'اسم العميل *',
-                prefixIcon: Icon(Icons.person_outline),
+            // حقل اختيار العميل
+            InkWell(
+              onTap: () => _showCustomerSelector(),
+              borderRadius: BorderRadius.circular(8),
+              child: InputDecorator(
+                decoration: InputDecoration(
+                  labelText: 'اسم العميل *',
+                  prefixIcon: const Icon(Icons.person_outline),
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_customerName != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () => setState(() {
+                            _selectedCustomer = null;
+                            _customerName = null;
+                            _customerPhone = null;
+                          }),
+                        ),
+                      Container(
+                        margin: const EdgeInsets.only(left: 8),
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.blue600,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.add,
+                            color: Colors.white, size: 18),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                  ),
+                ),
+                child: Text(
+                  _customerName ?? 'اختر العميل...',
+                  style: TextStyle(
+                    color: _customerName != null
+                        ? AppColors.textPrimary
+                        : AppColors.textMuted,
+                    fontSize: 16,
+                  ),
+                ),
               ),
-              textInputAction: TextInputAction.next,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'الرجاء إدخال اسم العميل';
-                }
-                return null;
-              },
             ),
-            AppSpacing.gapVerticalSm,
-            TextFormField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'رقم الهاتف',
-                prefixIcon: Icon(Icons.phone_outlined),
+            // عرض رقم الهاتف إذا كان موجوداً
+            if (_customerPhone != null && _customerPhone!.isNotEmpty) ...[
+              AppSpacing.gapVerticalSm,
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.teal600.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone_outlined,
+                        size: 18, color: AppColors.teal600),
+                    AppSpacing.gapHorizontalSm,
+                    Text(
+                      _customerPhone!,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.teal600,
+                          ),
+                    ),
+                  ],
+                ),
               ),
-              keyboardType: TextInputType.phone,
-              textInputAction: TextInputAction.done,
-            ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCustomerSelector() {
+    final customersAsync = ref.read(customersNotifierProvider);
+    final customers = customersAsync.valueOrNull ?? [];
+    final addNameController = TextEditingController();
+    final addPhoneController = TextEditingController();
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          // تصفية العملاء حسب البحث
+          final filteredCustomers = searchQuery.isEmpty
+              ? customers
+              : customers.where((c) {
+                  final query = searchQuery.toLowerCase();
+                  return c.name.toLowerCase().contains(query) ||
+                      (c.phone?.contains(query) ?? false);
+                }).toList();
+
+          return Container(
+            height: MediaQuery.of(sheetContext).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                        bottom: BorderSide(color: AppColors.borderColor)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        child: const Text('إلغاء'),
+                      ),
+                      const Text('اختر العميل',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 60),
+                    ],
+                  ),
+                ),
+                // حقل البحث
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: TextField(
+                    onChanged: (value) =>
+                        setSheetState(() => searchQuery = value),
+                    decoration: InputDecoration(
+                      hintText: 'بحث عن عميل...',
+                      prefixIcon: const Icon(Icons.search),
+                      isDense: true,
+                      filled: true,
+                      fillColor: AppColors.surfaceBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            const BorderSide(color: AppColors.borderColor),
+                      ),
+                    ),
+                  ),
+                ),
+                // إضافة عميل جديد
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Card(
+                    color: AppColors.blue600.withOpacity(0.05),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'إضافة عميل جديد',
+                            style: Theme.of(sheetContext)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(color: AppColors.blue600),
+                          ),
+                          AppSpacing.gapVerticalSm,
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: addNameController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'اسم العميل',
+                                    prefixIcon:
+                                        Icon(Icons.person_outline, size: 20),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                ),
+                              ),
+                              AppSpacing.gapHorizontalSm,
+                              Expanded(
+                                flex: 2,
+                                child: TextField(
+                                  controller: addPhoneController,
+                                  decoration: const InputDecoration(
+                                    hintText: 'رقم الهاتف',
+                                    prefixIcon:
+                                        Icon(Icons.phone_outlined, size: 20),
+                                    isDense: true,
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                  ),
+                                  keyboardType: TextInputType.phone,
+                                ),
+                              ),
+                              AppSpacing.gapHorizontalSm,
+                              FilledButton(
+                                onPressed: () async {
+                                  final name = addNameController.text.trim();
+                                  if (name.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content:
+                                            Text('الرجاء إدخال اسم العميل'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  final phone = addPhoneController.text.trim();
+
+                                  // إنشاء عميل جديد
+                                  final newCustomer = CustomerModel(
+                                    id: const Uuid().v4(),
+                                    name: name,
+                                    phone: phone.isNotEmpty ? phone : null,
+                                    createdAt: DateTime.now(),
+                                    updatedAt: DateTime.now(),
+                                  );
+
+                                  // حفظ العميل في قاعدة البيانات
+                                  await ref
+                                      .read(customersNotifierProvider.notifier)
+                                      .addCustomer(newCustomer);
+
+                                  // تحديد العميل الجديد
+                                  setState(() {
+                                    _selectedCustomer = newCustomer;
+                                    _customerName = name;
+                                    _customerPhone =
+                                        phone.isNotEmpty ? phone : null;
+                                  });
+
+                                  Navigator.pop(sheetContext);
+
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content:
+                                            Text('تم إضافة العميل واختياره'),
+                                        backgroundColor: AppColors.success,
+                                      ),
+                                    );
+                                  }
+                                },
+                                style: FilledButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                ),
+                                child: const Text('إضافة'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const Divider(height: 1),
+                // قائمة العملاء
+                Expanded(
+                  child: filteredCustomers.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline,
+                                  size: 48, color: AppColors.textMuted),
+                              AppSpacing.gapVerticalMd,
+                              Text(
+                                searchQuery.isEmpty
+                                    ? 'لا يوجد عملاء'
+                                    : 'لا توجد نتائج',
+                                style: Theme.of(sheetContext)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                              if (searchQuery.isEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    'أضف عميل جديد من الأعلى',
+                                    style: Theme.of(sheetContext)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: filteredCustomers.length,
+                          itemBuilder: (context, index) {
+                            final customer = filteredCustomers[index];
+                            final isSelected =
+                                _selectedCustomer?.id == customer.id;
+                            return ListTile(
+                              leading: Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? AppColors.blue600
+                                      : AppColors.teal600.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: isSelected
+                                      ? const Icon(Icons.check,
+                                          color: Colors.white)
+                                      : Text(
+                                          customer.name.isNotEmpty
+                                              ? customer.name[0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.teal600,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                              title: Text(
+                                customer.name,
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: customer.phone != null
+                                  ? Row(
+                                      children: [
+                                        const Icon(Icons.phone_outlined,
+                                            size: 14,
+                                            color: AppColors.textMuted),
+                                        const SizedBox(width: 4),
+                                        Text(customer.phone!),
+                                      ],
+                                    )
+                                  : null,
+                              trailing: isSelected
+                                  ? const Icon(Icons.check_circle,
+                                      color: AppColors.blue600)
+                                  : null,
+                              onTap: () {
+                                setState(() {
+                                  _selectedCustomer = customer;
+                                  _customerName = customer.name;
+                                  _customerPhone = customer.phone;
+                                });
+                                Navigator.pop(sheetContext);
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -233,11 +597,11 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                       if (item.brand.isNotEmpty)
                         _buildItemChip('الماركة: ${item.brand}'),
                       if (item.category != null && item.category!.isNotEmpty)
-                        _buildItemChip('الفئة: ${item.category}',
-                            color: AppColors.blue600),
+                        _buildItemChip(
+                          'الفئة: ${item.category}',
+                        ),
                       _buildItemChip('المقاس: ${item.size}'),
                       _buildItemChip('${item.packagesCount} طرد'),
-                      _buildItemChip('${item.pairsPerPackage} جوز/طرد'),
                     ],
                   ),
                   AppSpacing.gapVerticalXs,
@@ -385,12 +749,21 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
               ? Theme.of(context).textTheme.titleSmall
               : Theme.of(context).textTheme.bodyMedium,
         ),
-        Text(
-          value,
-          style: (isBold ? AppTypography.moneyMedium : AppTypography.moneySmall)
-              .copyWith(
-            color: valueColor ?? AppColors.textPrimary,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
+        const SizedBox(width: 8),
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerEnd,
+            child: Text(
+              value,
+              style: (isBold
+                      ? AppTypography.moneyMedium
+                      : AppTypography.moneySmall)
+                  .copyWith(
+                color: valueColor ?? AppColors.textPrimary,
+                fontWeight: isBold ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
           ),
         ),
       ],
@@ -1826,7 +2199,16 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   }
 
   Future<void> _saveInvoice(double exchangeRate) async {
-    if (!_formKey.currentState!.validate()) return;
+    // التحقق من اختيار العميل
+    if (_customerName == null || _customerName!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('الرجاء اختيار العميل'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
 
     if (_items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1840,40 +2222,74 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final invoiceNumber = await ref
-          .read(invoicesNotifierProvider.notifier)
-          .generateInvoiceNumber();
       final totalSYP = _totalUSD * exchangeRate;
 
-      final invoice = InvoiceModel(
-        id: const Uuid().v4(),
-        invoiceNumber: invoiceNumber,
-        customerName: _customerController.text.trim(),
-        customerPhone: _phoneController.text.trim().isNotEmpty
-            ? _phoneController.text.trim()
-            : null,
-        date: DateTime.now(),
-        items: _items,
-        subtotal: _subtotal,
-        discount: _discount,
-        totalUSD: _totalUSD,
-        exchangeRate: exchangeRate,
-        totalSYP: totalSYP,
-        notes: _notesController.text.trim().isNotEmpty
-            ? _notesController.text.trim()
-            : null,
-        createdAt: DateTime.now(),
-      );
-
-      await ref.read(invoicesNotifierProvider.notifier).addInvoice(invoice);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('تم حفظ الفاتورة بنجاح'),
-              backgroundColor: AppColors.success),
+      if (_isEditing) {
+        // تحديث الفاتورة الموجودة
+        final updatedInvoice = InvoiceModel(
+          id: widget.invoice!.id,
+          invoiceNumber: widget.invoice!.invoiceNumber,
+          customerName: _customerName!,
+          customerPhone: _customerPhone,
+          date: widget.invoice!.date,
+          items: _items,
+          subtotal: _subtotal,
+          discount: _discount,
+          totalUSD: _totalUSD,
+          exchangeRate: exchangeRate,
+          totalSYP: totalSYP,
+          notes: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
+          createdAt: widget.invoice!.createdAt,
         );
-        Navigator.pop(context, invoice);
+
+        await ref
+            .read(invoicesNotifierProvider.notifier)
+            .updateInvoice(updatedInvoice);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('تم تحديث الفاتورة بنجاح'),
+                backgroundColor: AppColors.success),
+          );
+          Navigator.pop(context, updatedInvoice);
+        }
+      } else {
+        // إنشاء فاتورة جديدة
+        final invoiceNumber = await ref
+            .read(invoicesNotifierProvider.notifier)
+            .generateInvoiceNumber();
+
+        final invoice = InvoiceModel(
+          id: const Uuid().v4(),
+          invoiceNumber: invoiceNumber,
+          customerName: _customerName!,
+          customerPhone: _customerPhone,
+          date: DateTime.now(),
+          items: _items,
+          subtotal: _subtotal,
+          discount: _discount,
+          totalUSD: _totalUSD,
+          exchangeRate: exchangeRate,
+          totalSYP: totalSYP,
+          notes: _notesController.text.trim().isNotEmpty
+              ? _notesController.text.trim()
+              : null,
+          createdAt: DateTime.now(),
+        );
+
+        await ref.read(invoicesNotifierProvider.notifier).addInvoice(invoice);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('تم حفظ الفاتورة بنجاح'),
+                backgroundColor: AppColors.success),
+          );
+          Navigator.pop(context, invoice);
+        }
       }
     } catch (e) {
       if (mounted) {

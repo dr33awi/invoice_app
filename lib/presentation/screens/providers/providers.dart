@@ -5,11 +5,11 @@ import 'package:wholesale_shoes_invoice/data/models/category_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/customer_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/invoice_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/product_model.dart';
-import 'package:wholesale_shoes_invoice/data/models/repositories/category_brand_repository.dart';
-import 'package:wholesale_shoes_invoice/data/models/repositories/customer_repository.dart';
-import 'package:wholesale_shoes_invoice/data/models/repositories/invoice_repository.dart';
-import 'package:wholesale_shoes_invoice/data/models/repositories/product_repository.dart';
-import 'package:wholesale_shoes_invoice/data/models/repositories/settings_repository.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/category_brand_repository.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/customer_repository.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/invoice_repository.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/product_repository.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/settings_repository.dart';
 
 // ═══════════════════════════════════════════════════════════
 // HIVE BOXES PROVIDERS

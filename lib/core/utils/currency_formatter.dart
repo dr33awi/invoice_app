@@ -15,6 +15,32 @@ class CurrencyFormatter {
     return '${formatter.format(amount.round())} ل.س';
   }
 
+  /// Format SYP amount in compact form (e.g., 1.5M, 500K)
+  static String formatSYPCompact(double amount) {
+    if (amount >= 1000000000) {
+      // مليار
+      final value = amount / 1000000000;
+      return '${_formatCompactNumber(value)} مليار';
+    } else if (amount >= 1000000) {
+      // مليون
+      final value = amount / 1000000;
+      return '${_formatCompactNumber(value)} مليون';
+    } else if (amount >= 1000) {
+      // ألف
+      final value = amount / 1000;
+      return '${_formatCompactNumber(value)} ألف';
+    }
+    return formatSYP(amount);
+  }
+
+  /// Helper to format compact numbers
+  static String _formatCompactNumber(double value) {
+    if (value == value.roundToDouble()) {
+      return value.round().toString();
+    }
+    return value.toStringAsFixed(1);
+  }
+
   /// Format number with thousands separator (Arabic style)
   static String formatNumber(double value, {int decimals = 0}) {
     final formatter = NumberFormat('#,###', 'ar');

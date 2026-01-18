@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
 import '../../../app/routes.dart';
@@ -11,11 +12,19 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
 
-class InvoicesListScreen extends ConsumerWidget {
+class InvoicesListScreen extends ConsumerStatefulWidget {
   const InvoicesListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<InvoicesListScreen> createState() => _InvoicesListScreenState();
+}
+
+class _InvoicesListScreenState extends ConsumerState<InvoicesListScreen> {
+  String _searchQuery = '';
+  String _sortOption = 'date'; // date, amount, customer
+
+  @override
+  Widget build(BuildContext context) {
     final invoicesAsync = ref.watch(invoicesNotifierProvider);
 
     return Scaffold(
@@ -24,66 +33,72 @@ class InvoicesListScreen extends ConsumerWidget {
         subtitle: 'جميع فواتير المبيعات',
         actions: [
           AppBarIconButton(
-            icon: Icons.search,
-            onPressed: () {
-              // TODO: Implement search
-            },
-          ),
-          AppBarIconButton(
             icon: Icons.filter_list,
-            onPressed: () {
-              // TODO: Implement filter
-            },
+            onPressed: () => _showFilterBottomSheet(context),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(invoicesNotifierProvider.notifier).loadInvoices();
-        },
-        child: invoicesAsync.when(
-          data: (invoices) {
-            if (invoices.isEmpty) {
-              return _buildEmptyState(context);
-            }
-            return ListView.separated(
-              padding: AppSpacing.paddingScreen,
-              itemCount: invoices.length,
-              separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
-              itemBuilder: (context, index) {
-                final invoice = invoices[index];
-                return _InvoiceCard(invoice: invoice);
+      body: Column(
+        children: [
+          // شريط البحث والإحصائيات
+          _buildSearchAndStats(invoicesAsync),
+          // قائمة الفواتير
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref
+                    .read(invoicesNotifierProvider.notifier)
+                    .loadInvoices();
               },
-            );
-          },
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
-          error: (error, _) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: AppColors.error,
+              child: invoicesAsync.when(
+                data: (invoices) {
+                  final filteredInvoices = _filterInvoices(invoices);
+                  if (filteredInvoices.isEmpty) {
+                    return _buildEmptyState(context, invoices.isEmpty);
+                  }
+                  return ListView.separated(
+                    padding: AppSpacing.paddingScreen,
+                    itemCount: filteredInvoices.length,
+                    separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
+                    itemBuilder: (context, index) {
+                      final invoice = filteredInvoices[index];
+                      return _InvoiceCard(invoice: invoice);
+                    },
+                  );
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
                 ),
-                AppSpacing.gapVerticalMd,
-                Text(
-                  'حدث خطأ في تحميل الفواتير',
-                  style: Theme.of(context).textTheme.titleMedium,
+                error: (error, _) => Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: AppColors.error,
+                      ),
+                      AppSpacing.gapVerticalMd,
+                      Text(
+                        'حدث خطأ في تحميل الفواتير',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      AppSpacing.gapVerticalSm,
+                      ElevatedButton(
+                        onPressed: () {
+                          ref
+                              .read(invoicesNotifierProvider.notifier)
+                              .loadInvoices();
+                        },
+                        child: const Text('إعادة المحاولة'),
+                      ),
+                    ],
+                  ),
                 ),
-                AppSpacing.gapVerticalSm,
-                ElevatedButton(
-                  onPressed: () {
-                    ref.read(invoicesNotifierProvider.notifier).loadInvoices();
-                  },
-                  child: const Text('إعادة المحاولة'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
@@ -101,26 +116,167 @@ class InvoicesListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  Widget _buildSearchAndStats(AsyncValue<List<InvoiceModel>> invoicesAsync) {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          // شريط البحث
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value),
+              decoration: InputDecoration(
+                hintText: 'بحث بالرقم أو اسم العميل...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.surfaceBg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+                  borderSide: const BorderSide(color: AppColors.borderColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+                  borderSide: const BorderSide(color: AppColors.borderColor),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<InvoiceModel> _filterInvoices(List<InvoiceModel> invoices) {
+    var filtered = invoices.toList();
+
+    // تصفية حسب البحث
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      filtered = filtered.where((inv) {
+        return inv.invoiceNumber.toLowerCase().contains(query) ||
+            inv.customerName.toLowerCase().contains(query) ||
+            (inv.customerPhone?.contains(query) ?? false);
+      }).toList();
+    }
+
+    // ترتيب حسب الخيار المحدد
+    switch (_sortOption) {
+      case 'date':
+        filtered.sort((a, b) => b.date.compareTo(a.date)); // الأحدث أولاً
+        break;
+      case 'amount':
+        filtered
+            .sort((a, b) => b.totalUSD.compareTo(a.totalUSD)); // الأعلى أولاً
+        break;
+      case 'customer':
+        filtered.sort(
+            (a, b) => a.customerName.compareTo(b.customerName)); // أبجدياً
+        break;
+    }
+
+    return filtered;
+  }
+
+  void _showFilterBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            AppSpacing.gapVerticalMd,
+            Text(
+              'خيارات الترتيب',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            AppSpacing.gapVerticalMd,
+            ListTile(
+              leading: const Icon(Icons.sort),
+              title: const Text('ترتيب حسب التاريخ'),
+              subtitle: const Text('الأحدث أولاً'),
+              trailing: _sortOption == 'date'
+                  ? const Icon(Icons.check, color: AppColors.blue600)
+                  : null,
+              onTap: () {
+                setState(() => _sortOption = 'date');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.attach_money),
+              title: const Text('ترتيب حسب المبلغ'),
+              subtitle: const Text('الأعلى أولاً'),
+              trailing: _sortOption == 'amount'
+                  ? const Icon(Icons.check, color: AppColors.blue600)
+                  : null,
+              onTap: () {
+                setState(() => _sortOption = 'amount');
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('ترتيب حسب العميل'),
+              subtitle: const Text('أبجدياً'),
+              trailing: _sortOption == 'customer'
+                  ? const Icon(Icons.check, color: AppColors.blue600)
+                  : null,
+              onTap: () {
+                setState(() => _sortOption = 'customer');
+                Navigator.pop(context);
+              },
+            ),
+            AppSpacing.gapVerticalMd,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context, bool noInvoices) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.receipt_long_outlined,
+            noInvoices ? Icons.receipt_long_outlined : Icons.search_off,
             size: 80,
             color: AppColors.textMuted,
           ),
           AppSpacing.gapVerticalLg,
           Text(
-            'لا توجد فواتير',
+            noInvoices ? 'لا توجد فواتير' : 'لا توجد نتائج',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: AppColors.textSecondary,
                 ),
           ),
           AppSpacing.gapVerticalSm,
           Text(
-            'اضغط على الزر لإنشاء فاتورة جديدة',
+            noInvoices
+                ? 'اضغط على الزر لإنشاء فاتورة جديدة'
+                : 'جرب كلمات بحث مختلفة',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
@@ -154,94 +310,205 @@ class _InvoiceCard extends StatelessWidget {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 10,
+                      vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.blue600.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.blue600,
+                          AppColors.blue600.withOpacity(0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       invoice.invoiceNumber,
                       style: AppTypography.codeSmall.copyWith(
-                        color: AppColors.blue600,
+                        color: Colors.white,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    DateFormatter.formatDateAr(invoice.date),
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-              AppSpacing.gapVerticalSm,
-
-              // Customer Name
-              Text(
-                invoice.customerName,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  AppSpacing.gapHorizontalSm,
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-              ),
-
-              if (invoice.customerPhone != null) ...[
-                AppSpacing.gapVerticalXs,
-                Row(
-                  children: [
-                    Icon(
-                      Icons.phone_outlined,
-                      size: 14,
-                      color: AppColors.textMuted,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle,
+                            size: 12, color: AppColors.success),
+                        const SizedBox(width: 4),
+                        Text(
+                          'مكتملة',
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.success,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ],
                     ),
-                    AppSpacing.gapHorizontalXs,
-                    Text(
-                      invoice.customerPhone!,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ],
-
-              const Divider(height: 24),
-
-              // Footer Row
-              Row(
-                children: [
-                  // Items count
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 16,
-                        color: AppColors.textSecondary,
-                      ),
-                      AppSpacing.gapHorizontalXs,
-                      Text(
-                        '${invoice.totalItemCount} قطعة',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
                   ),
                   const Spacer(),
-                  // Total
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        CurrencyFormatter.formatUSD(invoice.totalUSD),
-                        style: AppTypography.moneyMedium.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
+                        DateFormatter.formatDateAr(invoice.date),
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
                       Text(
-                        CurrencyFormatter.formatSYP(invoice.totalSYP),
-                        style: AppTypography.moneySmall.copyWith(
+                        DateFormat('hh:mm a', 'ar').format(invoice.date),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textMuted,
+                              fontSize: 10,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const Divider(height: 20),
+
+              // Customer Info Row
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.teal600.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(
+                        invoice.customerName.isNotEmpty
+                            ? invoice.customerName[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                           color: AppColors.teal600,
                         ),
                       ),
-                    ],
+                    ),
+                  ),
+                  AppSpacing.gapHorizontalMd,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          invoice.customerName,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                        if (invoice.customerPhone != null) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.phone_outlined,
+                                size: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              AppSpacing.gapHorizontalXs,
+                              Text(
+                                invoice.customerPhone!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              AppSpacing.gapVerticalSm,
+
+              // Footer Row - Totals
+              Row(
+                children: [
+                  // USD Total
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.blue600.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.attach_money,
+                              size: 18, color: AppColors.blue600),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                CurrencyFormatter.formatUSD(invoice.totalUSD),
+                                style: AppTypography.moneyMedium.copyWith(
+                                  color: AppColors.blue600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // SYP Total
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.teal600.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'ل.س',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.teal600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                CurrencyFormatter.formatSYP(invoice.totalSYP),
+                                style: AppTypography.moneySmall.copyWith(
+                                  color: AppColors.teal600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),

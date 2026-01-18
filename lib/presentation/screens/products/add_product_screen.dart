@@ -306,7 +306,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     TextFormField(
                       controller: _priceController,
                       decoration: const InputDecoration(
-                          labelText: 'سعر الجملة (USD) *',
+                          labelText: 'سعر(USD) *',
                           prefixIcon: Icon(Icons.attach_money),
                           prefixText: '\$ '),
                       keyboardType: TextInputType.number,
