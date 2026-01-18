@@ -4,6 +4,7 @@ import 'invoice_model.dart';
 import 'sync_metadata.dart';
 import 'category_model.dart';
 import 'brand_model.dart';
+import 'customer_model.dart';
 
 // ═══════════════════════════════════════════════════════════
 // PRODUCT MODEL ADAPTER
@@ -495,6 +496,65 @@ class BrandModelAdapter extends TypeAdapter<BrandModel> {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is BrandModelAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CUSTOMER MODEL ADAPTER
+// ═══════════════════════════════════════════════════════════
+
+class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
+  @override
+  final int typeId = 5;
+
+  @override
+  CustomerModel read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return CustomerModel(
+      id: fields[0] as String,
+      name: fields[1] as String,
+      phone: fields[2] as String?,
+      address: fields[3] as String?,
+      notes: fields[4] as String?,
+      isActive: fields[5] as bool? ?? true,
+      createdAt: fields[6] as DateTime?,
+      updatedAt: fields[7] as DateTime?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, CustomerModel obj) {
+    writer
+      ..writeByte(8)
+      ..writeByte(0)
+      ..write(obj.id)
+      ..writeByte(1)
+      ..write(obj.name)
+      ..writeByte(2)
+      ..write(obj.phone)
+      ..writeByte(3)
+      ..write(obj.address)
+      ..writeByte(4)
+      ..write(obj.notes)
+      ..writeByte(5)
+      ..write(obj.isActive)
+      ..writeByte(6)
+      ..write(obj.createdAt)
+      ..writeByte(7)
+      ..write(obj.updatedAt);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CustomerModelAdapter &&
           runtimeType == other.runtimeType &&
           typeId == other.typeId;
 }

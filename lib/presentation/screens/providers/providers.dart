@@ -2,9 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:wholesale_shoes_invoice/data/models/brand_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/category_model.dart';
+import 'package:wholesale_shoes_invoice/data/models/customer_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/invoice_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/product_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/repositories/category_brand_repository.dart';
+import 'package:wholesale_shoes_invoice/data/models/repositories/customer_repository.dart';
 import 'package:wholesale_shoes_invoice/data/models/repositories/invoice_repository.dart';
 import 'package:wholesale_shoes_invoice/data/models/repositories/product_repository.dart';
 import 'package:wholesale_shoes_invoice/data/models/repositories/settings_repository.dart';
@@ -31,6 +33,10 @@ final categoriesBoxProvider = Provider<Box<CategoryModel>>((ref) {
 
 final brandsBoxProvider = Provider<Box<BrandModel>>((ref) {
   return Hive.box<BrandModel>('brands');
+});
+
+final customersBoxProvider = Provider<Box<CustomerModel>>((ref) {
+  return Hive.box<CustomerModel>('customers');
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -60,6 +66,11 @@ final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
 final brandRepositoryProvider = Provider<BrandRepository>((ref) {
   final box = ref.watch(brandsBoxProvider);
   return BrandRepository(box);
+});
+
+final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
+  final box = ref.watch(customersBoxProvider);
+  return CustomerRepository(box);
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -385,4 +396,60 @@ final brandsNotifierProvider =
     StateNotifierProvider<BrandsNotifier, AsyncValue<List<BrandModel>>>((ref) {
   final repository = ref.watch(brandRepositoryProvider);
   return BrandsNotifier(repository);
+});
+
+// ═══════════════════════════════════════════════════════════
+// CUSTOMERS PROVIDERS
+// ═══════════════════════════════════════════════════════════
+
+class CustomersNotifier extends StateNotifier<AsyncValue<List<CustomerModel>>> {
+  final CustomerRepository _repository;
+
+  CustomersNotifier(this._repository) : super(const AsyncValue.loading()) {
+    loadCustomers();
+  }
+
+  Future<void> loadCustomers() async {
+    state = const AsyncValue.loading();
+    try {
+      final customers = _repository.getAllCustomers();
+      state = AsyncValue.data(customers);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> addCustomer(CustomerModel customer) async {
+    try {
+      await _repository.addCustomer(customer);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateCustomer(CustomerModel customer) async {
+    try {
+      await _repository.updateCustomer(customer);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    try {
+      await _repository.deleteCustomer(id);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+
+final customersNotifierProvider =
+    StateNotifierProvider<CustomersNotifier, AsyncValue<List<CustomerModel>>>(
+        (ref) {
+  final repository = ref.watch(customerRepositoryProvider);
+  return CustomersNotifier(repository);
 });

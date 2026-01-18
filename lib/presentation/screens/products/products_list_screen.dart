@@ -285,7 +285,7 @@ class _ProductCard extends StatelessWidget {
               ],
             ),
             AppSpacing.gapVerticalSm,
-            // Tags row
+            // Tags row - إزالة إجمالي الأزواج
             Wrap(
               spacing: 8,
               runSpacing: 4,
@@ -293,7 +293,6 @@ class _ProductCard extends StatelessWidget {
                 _buildChip('المقاس: ${product.sizeRange}'),
                 _buildChip('${product.packagesCount} طرد'),
                 _buildChip('${product.pairsPerPackage} جوز'),
-                _buildChip('${product.totalPairs} جوز', isHighlight: true),
                 if (product.category != null) _buildChip(product.category!),
               ],
             ),

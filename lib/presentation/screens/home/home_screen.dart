@@ -32,11 +32,6 @@ class HomeScreen extends ConsumerWidget {
             },
           ),
           AppBarIconButton(
-            icon: Icons.notifications_outlined,
-            showBadge: true,
-            onPressed: () {},
-          ),
-          AppBarIconButton(
             icon: Icons.settings_outlined,
             onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
           ),
@@ -54,7 +49,6 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Stats Cards Row
               statsAsync.when(
                 data: (stats) => Row(
                   children: [
@@ -121,8 +115,6 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               AppSpacing.gapVerticalLg,
-
-              // Quick Actions
               Text(
                 'الإجراءات السريعة',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -130,8 +122,6 @@ class HomeScreen extends ConsumerWidget {
                     ),
               ),
               AppSpacing.gapVerticalMd,
-
-              // Action Grid
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
@@ -171,20 +161,20 @@ class HomeScreen extends ConsumerWidget {
                           Navigator.pushNamed(context, AppRoutes.products),
                     ),
                     _ActionCard(
+                      title: 'العملاء',
+                      subtitle: 'إدارة قائمة العملاء',
+                      icon: Icons.people_outline,
+                      color: const Color(0xFF8B5CF6),
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.customers),
+                    ),
+                    _ActionCard(
                       title: 'الماركات',
                       subtitle: 'إدارة ماركات الأحذية',
                       icon: Icons.branding_watermark_outlined,
-                      color: const Color(0xFF8B5CF6),
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.brands),
-                    ),
-                    _ActionCard(
-                      title: 'الفئات',
-                      subtitle: 'إدارة فئات المنتجات',
-                      icon: Icons.category_outlined,
                       color: const Color(0xFFEC4899),
                       onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.categories),
+                          Navigator.pushNamed(context, AppRoutes.brands),
                     ),
                     _ActionCard(
                       title: 'سعر الصرف',
@@ -221,7 +211,6 @@ class HomeScreen extends ConsumerWidget {
     return Drawer(
       child: Column(
         children: [
-          // Header
           Container(
             width: double.infinity,
             padding: EdgeInsets.only(
@@ -266,7 +255,6 @@ class HomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-          // Menu Items
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -291,6 +279,14 @@ class HomeScreen extends ConsumerWidget {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.pushNamed(context, AppRoutes.products);
+                  },
+                ),
+                _DrawerItem(
+                  icon: Icons.people_outline,
+                  title: 'العملاء',
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, AppRoutes.customers);
                   },
                 ),
                 const Divider(),

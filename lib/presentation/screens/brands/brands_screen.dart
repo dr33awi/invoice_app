@@ -4,9 +4,9 @@ import 'package:uuid/uuid.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/providers/providers.dart';
 
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../data/models/brand_model.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_spacing.dart';
+import '../../../../data/models/brand_model.dart';
 
 class BrandsScreen extends ConsumerWidget {
   const BrandsScreen({super.key});

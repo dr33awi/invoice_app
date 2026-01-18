@@ -136,34 +136,6 @@ class _ExchangeRateScreenState extends ConsumerState<ExchangeRateScreen> {
                           setState(() => _currentRate = rate);
                       },
                     ),
-                    AppSpacing.gapVerticalLg,
-                    Text('قيم سريعة',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: AppColors.textSecondary)),
-                    AppSpacing.gapVerticalSm,
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [14000, 14500, 15000, 15500, 16000].map((v) {
-                        final isSelected = _rateController.text == v.toString();
-                        return ActionChip(
-                          label: Text(NumberFormat('#,###').format(v)),
-                          onPressed: () => setState(() {
-                            _rateController.text = v.toString();
-                            _currentRate = v.toDouble();
-                          }),
-                          backgroundColor: isSelected
-                              ? AppColors.blue600.withOpacity(0.2)
-                              : null,
-                          side: BorderSide(
-                              color: isSelected
-                                  ? AppColors.blue600
-                                  : AppColors.borderColor),
-                        );
-                      }).toList(),
-                    ),
                   ],
                 ),
               ),

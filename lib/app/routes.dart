@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:wholesale_shoes_invoice/presentation/brands/brands_screen.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/Categories/categories_screen.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/brands/brands_screen.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/customers/customers_screen.dart';
 
 import '../presentation/screens/home/home_screen.dart';
 import '../presentation/screens/invoices/invoices_list_screen.dart';
@@ -24,6 +25,7 @@ class AppRoutes {
   static const String exchangeRate = '/settings/exchange-rate';
   static const String categories = '/settings/categories';
   static const String brands = '/settings/brands';
+  static const String customers = '/customers';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -82,6 +84,11 @@ class AppRoutes {
       case brands:
         return MaterialPageRoute(
           builder: (_) => const BrandsScreen(),
+        );
+
+      case customers:
+        return MaterialPageRoute(
+          builder: (_) => const CustomersScreen(),
         );
 
       default:
