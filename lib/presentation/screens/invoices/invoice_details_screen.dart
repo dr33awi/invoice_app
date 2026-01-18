@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
+import 'package:wholesale_shoes_invoice/core/services/pdf_service.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -13,7 +14,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
-import '../../../core/services/pdf_service.dart';
 import '../../../core/theme/widgets/custom_app_bar.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';

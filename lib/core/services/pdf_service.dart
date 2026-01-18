@@ -1,650 +1,153 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:flutter/services.dart' show rootBundle;
-import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
+import 'package:intl/intl.dart';
 
 import '../../data/models/invoice_model.dart';
 
-/// PDF Invoice Service with Arabic RTL Support
+/// ═══════════════════════════════════════════════════════════════════════════
+/// خدمة إنشاء فواتير PDF - مطابق لتصميم Canva بالضبط
+/// ═══════════════════════════════════════════════════════════════════════════
+
 class PdfService {
-  /// تحميل بيانات الخط بشكل آمن - إنشاء نسخة جديدة كل مرة
-  static Future<pw.Font> _loadFont(String path, pw.Font fallback) async {
+  // الألوان
+  static final PdfColor _black = PdfColor.fromHex('#1A1A1A');
+  static final PdfColor _yellow = PdfColor.fromHex('#F4C430');
+  static final PdfColor _white = PdfColors.white;
+  static final PdfColor _lightGray = PdfColor.fromHex('#F5F5F5');
+  static final PdfColor _mediumGray = PdfColor.fromHex('#666666');
+  static final PdfColor _borderGray = PdfColor.fromHex('#E0E0E0');
+  static final PdfColor _yellowLight = PdfColor.fromHex('#FEF9E7');
+
+  // الخطوط
+  static pw.Font? _arabicRegular;
+  static pw.Font? _arabicBold;
+  static pw.Font? _mono;
+
+  static Future<void> _loadFonts() async {
+    if (_arabicRegular != null && _arabicBold != null && _mono != null) return;
+
     try {
-      final data = await rootBundle.load(path);
-      // إنشاء نسخة جديدة تماماً من البيانات
-      final bytes = Uint8List.fromList(
-        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-      );
-      return pw.Font.ttf(ByteData.view(bytes.buffer));
+      _arabicRegular = await PdfGoogleFonts.cairoRegular();
     } catch (e) {
-      print('❌ Failed to load font $path: $e');
-      return fallback;
+      try {
+        _arabicRegular = await PdfGoogleFonts.notoSansArabicRegular();
+      } catch (e2) {
+        _arabicRegular = pw.Font.helvetica();
+      }
     }
+
+    try {
+      _arabicBold = await PdfGoogleFonts.cairoBold();
+    } catch (e) {
+      try {
+        _arabicBold = await PdfGoogleFonts.notoSansArabicBold();
+      } catch (e2) {
+        _arabicBold = pw.Font.helveticaBold();
+      }
+    }
+
+    _mono = pw.Font.courier();
   }
 
-  /// إنشاء فاتورة PDF - تصميم محاسبي احترافي
-  static Future<Uint8List> generateInvoice(InvoiceModel invoice) async {
-    print('🔵 Loading fonts...');
+  static List<pw.Font> get _fontFallback =>
+      [_arabicRegular!, _arabicBold!, _mono!];
 
-    // استخدام PdfGoogleFonts لتحميل خطوط عربية متوافقة
-    pw.Font arabicFont;
-    pw.Font arabicFontBold;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // إنشاء الفاتورة
+  // ═══════════════════════════════════════════════════════════════════════════
 
-    try {
-      arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
-      print('✅ Arabic Regular loaded from Google Fonts');
-    } catch (e) {
-      print('⚠️ Google Fonts failed, using fallback: $e');
-      arabicFont = pw.Font.helvetica();
-    }
-
-    try {
-      arabicFontBold = await PdfGoogleFonts.notoSansArabicBold();
-      print('✅ Arabic Bold loaded from Google Fonts');
-    } catch (e) {
-      print('⚠️ Google Fonts Bold failed, using fallback: $e');
-      arabicFontBold = pw.Font.helveticaBold();
-    }
-
-    final monoFont = pw.Font.courier();
-    print('✅ Fonts loading completed');
+  static Future<Uint8List> generateInvoice(
+    InvoiceModel invoice, {
+    String companyName = 'شركة المعيار',
+    String companySubtitle = 'للأحذية بالجملة',
+    String? companyPhone,
+    String companyAddress = 'سوريا',
+    String returnPolicy =
+        'الإستبدال والإسترجاع خلال فترة الـ 14 يوم من تاريخ أستلام السلعة .',
+    double paidAmount = 0,
+  }) async {
+    await _loadFonts();
 
     final pdf = pw.Document();
+    final dateFormat = DateFormat('yyyy/MM/dd', 'en');
+    final decimalFormat = NumberFormat('#,##0.00', 'en');
 
-    // الألوان حسب المواصفات
-    final slate800 = PdfColor.fromHex('#1E293B'); // Header background
-    final slate100 = PdfColor.fromHex('#F1F5F9'); // Table header
-    final borderColor = PdfColor.fromHex('#E2E8F0'); // Borders
-    final greenColor = PdfColor.fromHex('#15803D'); // Total highlight
-    final darkText = PdfColor.fromHex('#1E293B');
-    final grayText = PdfColor.fromHex('#64748B');
-
-    // قائمة الخطوط البديلة
-    final fallback = <pw.Font>[arabicFont, arabicFontBold, monoFont];
-
-    // تنسيق بالأرقام الإنجليزية
-    final dateFmt = DateFormat('yyyy-MM-dd', 'en');
-    final numFmt = NumberFormat('#,###', 'en');
-    final decimalFmt = NumberFormat('#,##0.00', 'en');
+    final totalAfterPaid = invoice.totalUSD - paidAmount + invoice.discount;
 
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        textDirection: pw.TextDirection.rtl,
-        margin: const pw.EdgeInsets.all(24), // 24px margins
+        margin: pw.EdgeInsets.zero,
         build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: [
-              // ═══════════════════════════════════════════════════════════════
-              // HEADER - Slate 800 Background, White Text, No Shadows
-              // ═══════════════════════════════════════════════════════════════
-              pw.Container(
-                padding:
-                    const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                decoration: pw.BoxDecoration(
-                  color: slate800,
+          return pw.Container(
+            color: _white,
+            child: pw.Column(
+              children: [
+                // ═══════════════════════════════════════════════════════════
+                // الهيدر
+                // ═══════════════════════════════════════════════════════════
+                _buildHeader(
+                  companyName: companyName,
+                  companySubtitle: companySubtitle,
+                  invoiceNumber: invoice.invoiceNumber,
+                  invoiceDate: dateFormat.format(invoice.date),
                 ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    // معلومات الشركة - يمين (RTL)
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text(
-                          'شركة المعيار',
-                          style: pw.TextStyle(
-                            font: arabicFontBold,
-                            fontFallback: fallback,
-                            fontSize: 18,
-                            color: PdfColors.white,
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.SizedBox(height: 4),
-                        pw.Text(
-                          'بيع الأحذية بالجملة',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#94A3B8'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.SizedBox(height: 8),
-                        pw.Text(
-                          'هاتف: 09xxxxxxxx',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#CBD5E1'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.Text(
-                          'العنوان: سوريا',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#CBD5E1'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                      ],
-                    ),
-                    // INVOICE + معلومات الفاتورة - يسار (RTL)
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(
-                          'INVOICE',
-                          style: pw.TextStyle(
-                            font: arabicFontBold,
-                            fontFallback: fallback,
-                            fontSize: 18,
-                            color: PdfColors.white,
-                            letterSpacing: 2,
-                          ),
-                          textDirection: pw.TextDirection.ltr,
-                        ),
-                        pw.SizedBox(height: 8),
-                        pw.Text(
-                          '${invoice.invoiceNumber} :رقم الفاتورة',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#CBD5E1'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.Text(
-                          '${dateFmt.format(invoice.date)} :تاريخ الفاتورة',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#CBD5E1'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.Text(
-                          'USD :العملة الأساسية',
-                          style: pw.TextStyle(
-                            font: arabicFont,
-                            fontFallback: fallback,
-                            fontSize: 10,
-                            color: PdfColor.fromHex('#CBD5E1'),
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
 
-              pw.SizedBox(height: 20),
-
-              // ═══════════════════════════════════════════════════════════════
-              // 👤 معلومات العميل - فواصل خفيفة بدون صناديق
-              // ═══════════════════════════════════════════════════════════════
-              pw.Container(
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(color: borderColor, width: 1),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'معلومات العميل',
-                      style: pw.TextStyle(
-                        font: arabicFontBold,
-                        fontFallback: fallback,
-                        fontSize: 12,
-                        color: darkText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                    pw.SizedBox(height: 12),
-                    // صف البيانات
-                    pw.Table(
-                      border: pw.TableBorder(
-                        horizontalInside:
-                            pw.BorderSide(color: borderColor, width: 0.5),
-                      ),
-                      columnWidths: {
-                        0: const pw.FlexColumnWidth(1),
-                        1: const pw.FlexColumnWidth(2),
-                      },
-                      children: [
-                        pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                'اسم العميل',
-                                style: pw.TextStyle(
-                                  font: arabicFont,
-                                  fontFallback: fallback,
-                                  fontSize: 10,
-                                  color: grayText,
-                                ),
-                              ),
-                            ),
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                invoice.customerName,
-                                style: pw.TextStyle(
-                                  font: arabicFontBold,
-                                  fontFallback: fallback,
-                                  fontSize: 11,
-                                  color: darkText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                'تاريخ الفاتورة',
-                                style: pw.TextStyle(
-                                  font: arabicFont,
-                                  fontFallback: fallback,
-                                  fontSize: 10,
-                                  color: grayText,
-                                ),
-                              ),
-                            ),
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                dateFmt.format(invoice.date),
-                                style: pw.TextStyle(
-                                  font: monoFont,
-                                  fontFallback: fallback,
-                                  fontSize: 11,
-                                  color: darkText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        pw.TableRow(
-                          children: [
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                'سعر الصرف',
-                                style: pw.TextStyle(
-                                  font: arabicFont,
-                                  fontFallback: fallback,
-                                  fontSize: 10,
-                                  color: grayText,
-                                ),
-                              ),
-                            ),
-                            pw.Padding(
-                              padding:
-                                  const pw.EdgeInsets.symmetric(vertical: 8),
-                              child: pw.Text(
-                                '1 USD = ${numFmt.format(invoice.exchangeRate)} SYP',
-                                style: pw.TextStyle(
-                                  font: monoFont,
-                                  fontFallback: fallback,
-                                  fontSize: 11,
-                                  color: darkText,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              pw.SizedBox(height: 20),
-
-              // ═══════════════════════════════════════════════════════════════
-              // 📦 تفاصيل المنتجات - جدول محاسبي كثيف
-              // ═══════════════════════════════════════════════════════════════
-              pw.Align(
-                alignment: pw.Alignment.centerRight,
-                child: pw.Text(
-                  'تفاصيل المنتجات',
-                  style: pw.TextStyle(
-                    font: arabicFontBold,
-                    fontFallback: fallback,
-                    fontSize: 12,
-                    color: darkText,
+                // ═══════════════════════════════════════════════════════════
+                // معلومات العميل
+                // ═══════════════════════════════════════════════════════════
+                pw.Padding(
+                  padding: const pw.EdgeInsets.fromLTRB(40, 30, 40, 20),
+                  child: _buildCustomerInfo(
+                    customerName: invoice.customerName,
+                    customerPhone: invoice.customerPhone,
+                    customerAddress: companyAddress,
+                    companyPhone: companyPhone,
                   ),
-                  textDirection: pw.TextDirection.rtl,
                 ),
-              ),
-              pw.SizedBox(height: 8),
 
-              // جدول المنتجات
-              pw.Table(
-                border: pw.TableBorder.all(color: borderColor, width: 1),
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(30), // #
-                  1: const pw.FlexColumnWidth(3), // اسم المنتج
-                  2: const pw.FixedColumnWidth(50), // المقاس
-                  3: const pw.FixedColumnWidth(50), // الكمية
-                  4: const pw.FixedColumnWidth(80), // سعر الوحدة
-                  5: const pw.FixedColumnWidth(80), // الإجمالي
-                },
-                children: [
-                  // Header Row - Slate 100
-                  pw.TableRow(
-                    decoration: pw.BoxDecoration(color: slate100),
-                    children: [
-                      _buildTableHeader(
-                          '#', arabicFontBold, fallback, pw.TextAlign.center),
-                      _buildTableHeader('اسم المنتج', arabicFontBold, fallback,
-                          pw.TextAlign.right),
-                      _buildTableHeader('المقاس', arabicFontBold, fallback,
-                          pw.TextAlign.center),
-                      _buildTableHeader('الكمية', arabicFontBold, fallback,
-                          pw.TextAlign.center),
-                      _buildTableHeader('سعر الوحدة (USD)', arabicFontBold,
-                          fallback, pw.TextAlign.left),
-                      _buildTableHeader('الإجمالي (USD)', arabicFontBold,
-                          fallback, pw.TextAlign.left),
-                    ],
+                // ═══════════════════════════════════════════════════════════
+                // جدول المنتجات
+                // ═══════════════════════════════════════════════════════════
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 40),
+                  child: _buildItemsTable(
+                    items: invoice.items,
+                    decimalFormat: decimalFormat,
                   ),
-                  // Data Rows
-                  ...invoice.items.asMap().entries.map((entry) {
-                    final i = entry.key;
-                    final item = entry.value;
-                    return pw.TableRow(
-                      children: [
-                        _buildTableCell('${i + 1}', monoFont, fallback,
-                            pw.TextAlign.center),
-                        _buildTableCellArabic(
-                            item.productName, arabicFont, fallback),
-                        _buildTableCell('${item.size}', monoFont, fallback,
-                            pw.TextAlign.center),
-                        _buildTableCell('${item.quantity}', monoFont, fallback,
-                            pw.TextAlign.center),
-                        _buildTableCell(decimalFmt.format(item.unitPrice),
-                            monoFont, fallback, pw.TextAlign.left),
-                        _buildTableCell(decimalFmt.format(item.total), monoFont,
-                            fallback, pw.TextAlign.left),
-                      ],
-                    );
-                  }),
-                ],
-              ),
+                ),
 
-              pw.SizedBox(height: 20),
+                pw.SizedBox(height: 20),
 
-              // ═══════════════════════════════════════════════════════════════
-              // 💰 الملخص المالي
-              // ═══════════════════════════════════════════════════════════════
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  // الملخص المالي على اليمين (RTL)
-                  pw.Container(
-                    width: 250,
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.end,
-                      children: [
-                        pw.Text(
-                          'الملخص المالي',
-                          style: pw.TextStyle(
-                            font: arabicFontBold,
-                            fontFallback: fallback,
-                            fontSize: 12,
-                            color: darkText,
-                          ),
-                          textDirection: pw.TextDirection.rtl,
-                        ),
-                        pw.SizedBox(height: 8),
-                        pw.Table(
-                          border:
-                              pw.TableBorder.all(color: borderColor, width: 1),
-                          columnWidths: {
-                            0: const pw.FlexColumnWidth(1),
-                            1: const pw.FlexColumnWidth(1),
-                          },
-                          children: [
-                            // المجموع الفرعي
-                            pw.TableRow(
-                              children: [
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    'المجموع الفرعي (USD)',
-                                    style: pw.TextStyle(
-                                      font: arabicFont,
-                                      fontFallback: fallback,
-                                      fontSize: 10,
-                                      color: grayText,
-                                    ),
-                                  ),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    decimalFmt.format(invoice.subtotal),
-                                    style: pw.TextStyle(
-                                      font: monoFont,
-                                      fontFallback: fallback,
-                                      fontSize: 11,
-                                      color: darkText,
-                                    ),
-                                    textAlign: pw.TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // سعر الصرف
-                            pw.TableRow(
-                              children: [
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    'سعر الصرف',
-                                    style: pw.TextStyle(
-                                      font: arabicFont,
-                                      fontFallback: fallback,
-                                      fontSize: 10,
-                                      color: grayText,
-                                    ),
-                                  ),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    numFmt.format(invoice.exchangeRate),
-                                    style: pw.TextStyle(
-                                      font: monoFont,
-                                      fontFallback: fallback,
-                                      fontSize: 11,
-                                      color: darkText,
-                                    ),
-                                    textAlign: pw.TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            // الإجمالي بالليرة - Green highlight
-                            pw.TableRow(
-                              children: [
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    'الإجمالي بالليرة (SYP)',
-                                    style: pw.TextStyle(
-                                      font: arabicFontBold,
-                                      fontFallback: fallback,
-                                      fontSize: 11,
-                                      color: greenColor,
-                                    ),
-                                  ),
-                                ),
-                                pw.Padding(
-                                  padding: const pw.EdgeInsets.all(10),
-                                  child: pw.Text(
-                                    numFmt.format(invoice.totalSYP.round()),
-                                    style: pw.TextStyle(
-                                      font: monoFont,
-                                      fontFallback: fallback,
-                                      fontSize: 15,
-                                      color: greenColor,
-                                    ),
-                                    textAlign: pw.TextAlign.left,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                // ═══════════════════════════════════════════════════════════
+                // الملخص والملاحظات
+                // ═══════════════════════════════════════════════════════════
+                pw.Padding(
+                  padding: const pw.EdgeInsets.symmetric(horizontal: 40),
+                  child: _buildSummarySection(
+                    subtotal: invoice.subtotal,
+                    paidAmount: paidAmount,
+                    discount: invoice.discount,
+                    total: totalAfterPaid,
+                    returnPolicy: returnPolicy,
+                    notes: invoice.notes,
+                    decimalFormat: decimalFormat,
                   ),
-                  // مساحة فارغة على اليسار (RTL)
-                  pw.Expanded(
-                    flex: 1,
-                    child: pw.Container(),
-                  ),
-                ],
-              ),
-
-              pw.SizedBox(height: 24),
-
-              // ═══════════════════════════════════════════════════════════════
-              // ملاحظات
-              // ═══════════════════════════════════════════════════════════════
-              pw.Container(
-                padding: const pw.EdgeInsets.all(16),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      top: pw.BorderSide(color: borderColor, width: 1)),
                 ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.end,
-                  children: [
-                    pw.Text(
-                      'ملاحظات',
-                      style: pw.TextStyle(
-                        font: arabicFontBold,
-                        fontFallback: fallback,
-                        fontSize: 11,
-                        color: darkText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                    pw.SizedBox(height: 10),
-                    if (invoice.notes != null && invoice.notes!.isNotEmpty)
-                      pw.Text(
-                        invoice.notes!,
-                        style: pw.TextStyle(
-                          font: arabicFont,
-                          fontFallback: fallback,
-                          fontSize: 10,
-                          color: grayText,
-                        ),
-                        textDirection: pw.TextDirection.rtl,
-                      ),
-                    pw.Text(
-                      'هذه الفاتورة صادرة عن شركة المعيار',
-                      style: pw.TextStyle(
-                        font: arabicFont,
-                        fontFallback: fallback,
-                        fontSize: 10,
-                        color: grayText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                    pw.SizedBox(height: 4),
-                    pw.Text(
-                      'تم إنشاء الفاتورة عبر نظام محاسبي إلكتروني',
-                      style: pw.TextStyle(
-                        font: arabicFont,
-                        fontFallback: fallback,
-                        fontSize: 10,
-                        color: grayText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                    pw.SizedBox(height: 20),
-                    pw.Align(
-                      alignment: pw.Alignment.centerRight,
-                      child: pw.Text(
-                        'التوقيع: ______________________',
-                        style: pw.TextStyle(
-                          font: arabicFont,
-                          fontFallback: fallback,
-                          fontSize: 10,
-                          color: darkText,
-                        ),
-                        textDirection: pw.TextDirection.rtl,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
-              pw.Spacer(),
+                pw.Spacer(),
 
-              // ═══════════════════════════════════════════════════════════════
-              // FOOTER
-              // ═══════════════════════════════════════════════════════════════
-              pw.Container(
-                padding: const pw.EdgeInsets.only(top: 10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border(
-                      top: pw.BorderSide(color: borderColor, width: 1)),
-                ),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text(
-                      '${dateFmt.format(DateTime.now())} - شركة المعيار',
-                      style: pw.TextStyle(
-                        font: arabicFont,
-                        fontFallback: fallback,
-                        fontSize: 9,
-                        color: grayText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                    pw.Text(
-                      'شكراً لتعاملكم معنا',
-                      style: pw.TextStyle(
-                        font: arabicFont,
-                        fontFallback: fallback,
-                        fontSize: 9,
-                        color: grayText,
-                      ),
-                      textDirection: pw.TextDirection.rtl,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                // ═══════════════════════════════════════════════════════════
+                // الباركود
+                // ═══════════════════════════════════════════════════════════
+                _buildBarcode(invoice.invoiceNumber),
+
+                pw.SizedBox(height: 30),
+              ],
+            ),
           );
         },
       ),
@@ -654,219 +157,664 @@ class PdfService {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Table Helper Widgets
+  // الهيدر - خلفية سوداء للشعار يسار + شريط ذهبي سفلي
   // ═══════════════════════════════════════════════════════════════════════════
 
-  static pw.Widget _buildTableHeader(
-    String text,
-    pw.Font font,
-    List<pw.Font> fallback,
-    pw.TextAlign align,
-  ) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(
-          font: font,
-          fontFallback: fallback,
-          fontSize: 10,
-          color: PdfColor.fromHex('#1E293B'),
-        ),
-        textAlign: align,
+  static pw.Widget _buildHeader({
+    required String companyName,
+    required String companySubtitle,
+    required String invoiceNumber,
+    required String invoiceDate,
+  }) {
+    return pw.Container(
+      height: 180,
+      child: pw.Stack(
+        children: [
+          // خلفية بيضاء
+          pw.Positioned.fill(child: pw.Container(color: _white)),
+
+          // الخلفية السوداء للشعار - يسار (أكبر)
+          pw.Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: pw.CustomPaint(
+              size: const PdfPoint(320, 180),
+              painter: (canvas, size) {
+                // المستطيل الأسود القطري
+                canvas
+                  ..setFillColor(_black)
+                  ..moveTo(0, 0)
+                  ..lineTo(290, 0)
+                  ..lineTo(230, size.y)
+                  ..lineTo(0, size.y)
+                  ..closePath()
+                  ..fillPath();
+              },
+            ),
+          ),
+
+          // الشعار واسم الشركة - على الخلفية السوداء
+          pw.Positioned(
+            left: 25,
+            top: 35,
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                // أيقونة الحذاء
+                pw.Container(
+                  width: 55,
+                  height: 50,
+                  child: pw.CustomPaint(
+                    size: const PdfPoint(55, 50),
+                    painter: (canvas, size) {
+                      // رسم حذاء بلون أصفر
+                      canvas
+                        ..setStrokeColor(_yellow)
+                        ..setLineWidth(2.5)
+                        ..moveTo(5, 32)
+                        ..lineTo(10, 15)
+                        ..lineTo(28, 8)
+                        ..lineTo(50, 15)
+                        ..lineTo(50, 32)
+                        ..lineTo(45, 38)
+                        ..lineTo(5, 38)
+                        ..closePath()
+                        ..strokePath();
+                    },
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      companyName,
+                      style: pw.TextStyle(
+                        font: _arabicBold,
+                        fontFallback: _fontFallback,
+                        fontSize: 22,
+                        color: _yellow,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                    pw.Text(
+                      companySubtitle,
+                      style: pw.TextStyle(
+                        font: _arabicRegular,
+                        fontFallback: _fontFallback,
+                        fontSize: 11,
+                        color: _white,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // عنوان الفاتورة - يمين
+          pw.Positioned(
+            right: 40,
+            top: 30,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  'فاتورة مبيعات',
+                  style: pw.TextStyle(
+                    font: _arabicBold,
+                    fontFallback: _fontFallback,
+                    fontSize: 28,
+                    color: _black,
+                  ),
+                  textDirection: pw.TextDirection.rtl,
+                ),
+                pw.SizedBox(height: 12),
+                _buildHeaderInfoRow('رقم الفاتورة', invoiceNumber),
+                pw.SizedBox(height: 4),
+                _buildHeaderInfoRow('تاريخ الفاتورة', invoiceDate),
+                pw.SizedBox(height: 4),
+                _buildHeaderInfoRow('العملة الأساسية', 'USD'),
+              ],
+            ),
+          ),
+
+          // الخط الأصفر السفلي
+          pw.Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: pw.Container(height: 4, color: _yellow),
+          ),
+        ],
       ),
     );
   }
 
-  static pw.Widget _buildTableCell(
-    String text,
-    pw.Font font,
-    List<pw.Font> fallback,
-    pw.TextAlign align,
-  ) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+  static pw.Widget _buildHeaderInfoRow(String label, String value) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            font: _mono,
+            fontFallback: _fontFallback,
+            fontSize: 10,
+            color: _mediumGray,
+          ),
+        ),
+        pw.SizedBox(width: 5),
+        pw.Text(
+          '$label :',
+          style: pw.TextStyle(
+            font: _arabicRegular,
+            fontFallback: _fontFallback,
+            fontSize: 10,
+            color: _black,
+          ),
+          textDirection: pw.TextDirection.rtl,
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // معلومات العميل - عمودين: يمين (معلومات العميل) ويسار (معلومات الشركة)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static pw.Widget _buildCustomerInfo({
+    required String customerName,
+    String? customerPhone,
+    required String customerAddress,
+    String? companyPhone,
+  }) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // العمود الأيسر - معلومات الشركة
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              _buildInfoRowLTR('رقم الهاتف', companyPhone ?? ''),
+              pw.SizedBox(height: 6),
+              _buildInfoRowLTR('العنوان', customerAddress),
+            ],
+          ),
+        ),
+
+        pw.SizedBox(width: 60),
+
+        // العمود الأيمن - معلومات العميل
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              _buildInfoRowRTL('اسم العميل', customerName),
+              pw.SizedBox(height: 6),
+              _buildInfoRowRTL('العنوان', ''),
+              pw.SizedBox(height: 6),
+              _buildInfoRowRTL('رقم الهاتف', customerPhone ?? ''),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // صف معلومات - محاذاة يمين: التسمية ثم القيمة (للعميل)
+  static pw.Widget _buildInfoRowRTL(String label, String value) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.end,
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        if (value.isNotEmpty)
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              font: _arabicRegular,
+              fontFallback: _fontFallback,
+              fontSize: 11,
+              color: _black,
+            ),
+            textDirection: pw.TextDirection.rtl,
+          ),
+        pw.SizedBox(width: 5),
+        pw.Text(
+          '$label :',
+          style: pw.TextStyle(
+            font: _arabicBold,
+            fontFallback: _fontFallback,
+            fontSize: 11,
+            color: _black,
+          ),
+          textDirection: pw.TextDirection.rtl,
+        ),
+      ],
+    );
+  }
+
+  // صف معلومات - محاذاة يسار: القيمة ثم التسمية (للشركة)
+  static pw.Widget _buildInfoRowLTR(String label, String value) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.start,
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        if (value.isNotEmpty)
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              font: _mono,
+              fontFallback: _fontFallback,
+              fontSize: 11,
+              color: _black,
+            ),
+          ),
+        pw.SizedBox(width: 5),
+        pw.Text(
+          '$label :',
+          style: pw.TextStyle(
+            font: _arabicBold,
+            fontFallback: _fontFallback,
+            fontSize: 11,
+            color: _black,
+          ),
+          textDirection: pw.TextDirection.rtl,
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // جدول المنتجات - RTL: الرقم يمين، الإجمالي يسار
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static pw.Widget _buildItemsTable({
+    required List<InvoiceItemModel> items,
+    required NumberFormat decimalFormat,
+  }) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: _borderGray, width: 0.5),
+      // ترتيب الأعمدة من اليمين لليسار
+      columnWidths: {
+        0: const pw.FixedColumnWidth(50), // اجمالي
+        1: const pw.FixedColumnWidth(45), // الكمية
+        2: const pw.FixedColumnWidth(60), // سعر الوحدة
+        3: const pw.FixedColumnWidth(55), // المقاس
+        4: const pw.FlexColumnWidth(2.5), // أسم المنتج
+        5: const pw.FixedColumnWidth(40), // الرقم
+      },
+      children: [
+        // رأس الجدول - أسود
+        pw.TableRow(
+          decoration: pw.BoxDecoration(color: _black),
+          children: [
+            _tableHeader('اجمالي'),
+            _tableHeader('الكمية'),
+            _tableHeader('سعر الوحدة'),
+            _tableHeader('المقاس'),
+            _tableHeader('أسم المنتج'),
+            _tableHeader('الرقم'),
+          ],
+        ),
+        // صفوف البيانات
+        ...items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          final isEven = index % 2 == 0;
+
+          return pw.TableRow(
+            decoration: pw.BoxDecoration(color: isEven ? _white : _lightGray),
+            children: [
+              _tableCell('\$${decimalFormat.format(item.total)}'),
+              _tableCell('${item.quantity}'),
+              _tableCell('\$${decimalFormat.format(item.unitPrice)}'),
+              _tableCell(item.size),
+              _tableCell(item.productName, isArabic: true),
+              _tableCell('${index + 1}'),
+            ],
+          );
+        }),
+      ],
+    );
+  }
+
+  static pw.Widget _tableHeader(String text) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      alignment: pw.Alignment.center,
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          font: font,
-          fontFallback: fallback,
+          font: _arabicBold,
+          fontFallback: _fontFallback,
           fontSize: 10,
-          color: PdfColor.fromHex('#1E293B'),
+          color: _white,
         ),
-        textAlign: align,
+        textAlign: pw.TextAlign.center,
+        textDirection: pw.TextDirection.rtl,
       ),
     );
   }
 
-  static pw.Widget _buildTableCellArabic(
-    String text,
-    pw.Font font,
-    List<pw.Font> fallback,
-  ) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+  static pw.Widget _tableCell(String text, {bool isArabic = false}) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      alignment: pw.Alignment.center,
       child: pw.Text(
         text,
         style: pw.TextStyle(
-          font: font,
-          fontFallback: fallback,
+          font: isArabic ? _arabicRegular : _mono,
+          fontFallback: _fontFallback,
           fontSize: 10,
-          color: PdfColor.fromHex('#1E293B'),
+          color: _black,
         ),
-        textAlign: pw.TextAlign.right,
+        textAlign: pw.TextAlign.center,
+        textDirection: pw.TextDirection.rtl,
       ),
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // قسم الملخص - الأرقام يسار، الملاحظات يمين
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static pw.Widget _buildSummarySection({
+    required double subtotal,
+    required double paidAmount,
+    required double discount,
+    required double total,
+    required String returnPolicy,
+    String? notes,
+    required NumberFormat decimalFormat,
+  }) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // الملخص المالي - يسار
+        pw.Expanded(
+          flex: 4,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              // العربون المقبوض
+              _buildSummaryRow(
+                  'العربون المقبوض', '\$${decimalFormat.format(paidAmount)}'),
+              pw.SizedBox(height: 12),
+
+              // مربع الإجمالي الأصفر
+              pw.Container(
+                padding:
+                    const pw.EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                decoration: pw.BoxDecoration(
+                  color: _yellow,
+                  borderRadius: pw.BorderRadius.circular(3),
+                ),
+                child: pw.Row(
+                  mainAxisSize: pw.MainAxisSize.min,
+                  children: [
+                    pw.Text(
+                      '\$${decimalFormat.format(total)}',
+                      style: pw.TextStyle(
+                        font: _arabicBold,
+                        fontFallback: _fontFallback,
+                        fontSize: 14,
+                        color: _black,
+                      ),
+                    ),
+                    pw.SizedBox(width: 30),
+                    pw.Text(
+                      'الاجمالي',
+                      style: pw.TextStyle(
+                        font: _arabicBold,
+                        fontFallback: _fontFallback,
+                        fontSize: 12,
+                        color: _black,
+                      ),
+                      textDirection: pw.TextDirection.rtl,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        pw.SizedBox(width: 40),
+
+        // الملاحظات - يمين
+        pw.Expanded(
+          flex: 5,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                'ملاحظة:',
+                style: pw.TextStyle(
+                  font: _arabicBold,
+                  fontFallback: _fontFallback,
+                  fontSize: 11,
+                  color: _black,
+                ),
+                textDirection: pw.TextDirection.rtl,
+              ),
+              pw.SizedBox(height: 8),
+              pw.Text(
+                returnPolicy,
+                style: pw.TextStyle(
+                  font: _arabicRegular,
+                  fontFallback: _fontFallback,
+                  fontSize: 10,
+                  color: _mediumGray,
+                ),
+                textDirection: pw.TextDirection.rtl,
+                textAlign: pw.TextAlign.right,
+              ),
+              if (notes != null && notes.isNotEmpty) ...[
+                pw.SizedBox(height: 10),
+                pw.Text(
+                  notes,
+                  style: pw.TextStyle(
+                    font: _arabicRegular,
+                    fontFallback: _fontFallback,
+                    fontSize: 10,
+                    color: _mediumGray,
+                  ),
+                  textDirection: pw.TextDirection.rtl,
+                  textAlign: pw.TextAlign.right,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildSummaryRow(String label, String value) {
+    return pw.Row(
+      mainAxisSize: pw.MainAxisSize.min,
+      children: [
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            font: _mono,
+            fontFallback: _fontFallback,
+            fontSize: 11,
+            color: _black,
+          ),
+        ),
+        pw.SizedBox(width: 30),
+        pw.Text(
+          label,
+          style: pw.TextStyle(
+            font: _arabicBold,
+            fontFallback: _fontFallback,
+            fontSize: 11,
+            color: _black,
+          ),
+          textDirection: pw.TextDirection.rtl,
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // الباركود
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  static pw.Widget _buildBarcode(String invoiceNumber) {
+    return pw.Center(
+      child: pw.Column(
+        children: [
+          pw.Container(
+            width: 180,
+            height: 50,
+            child: pw.CustomPaint(
+              size: const PdfPoint(180, 50),
+              painter: (canvas, size) {
+                final random = math.Random(invoiceNumber.hashCode);
+                double x = 0;
+                const barWidth = 2.0;
+                const gap = 1.0;
+
+                while (x < size.x) {
+                  final width = (random.nextInt(3) + 1) * barWidth;
+                  if (random.nextBool()) {
+                    canvas
+                      ..setFillColor(_black)
+                      ..drawRect(x, 0, width, size.y)
+                      ..fillPath();
+                  }
+                  x += width + gap;
+                }
+              },
+            ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            '4444444444444',
+            style: pw.TextStyle(
+              font: _mono,
+              fontSize: 9,
+              color: _mediumGray,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // تقرير الفواتير
+  // ═══════════════════════════════════════════════════════════════════════════
+
   static Future<Uint8List> generateInvoicesReport(
     List<InvoiceModel> invoices, {
     DateTime? startDate,
     DateTime? endDate,
   }) async {
-    // تحميل الخطوط باستخدام Google Fonts
-    pw.Font arabicFont;
-    pw.Font arabicFontBold;
-
-    try {
-      arabicFont = await PdfGoogleFonts.notoSansArabicRegular();
-    } catch (e) {
-      arabicFont = pw.Font.helvetica();
-    }
-
-    try {
-      arabicFontBold = await PdfGoogleFonts.notoSansArabicBold();
-    } catch (e) {
-      arabicFontBold = pw.Font.helveticaBold();
-    }
-
-    final monoFont = pw.Font.courier();
-    final fallback = <pw.Font>[arabicFont, arabicFontBold, monoFont];
+    await _loadFonts();
 
     final pdf = pw.Document();
-    final primaryColor = PdfColor.fromHex('#2563EB');
-    final tealColor = PdfColor.fromHex('#0D9488');
-    final darkColor = PdfColor.fromHex('#1E293B');
-    final grayColor = PdfColor.fromHex('#64748B');
-    final lightGray = PdfColor.fromHex('#F1F5F9');
-    final borderColor = PdfColor.fromHex('#E2E8F0');
-
-    final dateFmt = DateFormat('yyyy/MM/dd', 'en');
-    final numFmt = NumberFormat('#,###', 'en');
+    final dateFormat = DateFormat('yyyy/MM/dd', 'en');
+    final decimalFormat = NumberFormat('#,##0.00', 'en');
 
     final totalUSD = invoices.fold<double>(0, (s, i) => s + i.totalUSD);
-    final totalSYP = invoices.fold<double>(0, (s, i) => s + i.totalSYP);
     final totalItems = invoices.fold<int>(0, (s, i) => s + i.items.length);
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         textDirection: pw.TextDirection.rtl,
-        margin: const pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.all(30),
         header: (ctx) => pw.Container(
           margin: const pw.EdgeInsets.only(bottom: 20),
+          padding: const pw.EdgeInsets.only(bottom: 12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border(bottom: pw.BorderSide(color: _yellow, width: 4)),
+          ),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('تقرير الفواتير',
-                  style: pw.TextStyle(
-                      font: arabicFontBold,
-                      fontFallback: fallback,
-                      fontSize: 20,
-                      color: darkColor)),
-              pw.Text('صفحة ${ctx.pageNumber} من ${ctx.pagesCount}',
-                  style: pw.TextStyle(
-                      font: arabicFont,
-                      fontFallback: fallback,
-                      fontSize: 10,
-                      color: grayColor)),
+              pw.Text(
+                'صفحة ${ctx.pageNumber}/${ctx.pagesCount}',
+                style: pw.TextStyle(
+                    font: _arabicRegular,
+                    fontFallback: _fontFallback,
+                    fontSize: 10,
+                    color: _mediumGray),
+              ),
+              pw.Text(
+                'تقرير الفواتير',
+                style: pw.TextStyle(
+                    font: _arabicBold,
+                    fontFallback: _fontFallback,
+                    fontSize: 22,
+                    color: _black),
+                textDirection: pw.TextDirection.rtl,
+              ),
             ],
-          ),
-        ),
-        footer: (ctx) => pw.Container(
-          margin: const pw.EdgeInsets.only(top: 20),
-          padding: const pw.EdgeInsets.only(top: 10),
-          decoration: pw.BoxDecoration(
-              border: pw.Border(top: pw.BorderSide(color: borderColor))),
-          child: pw.Text(
-            'تم الإنشاء: ${DateFormat('yyyy/MM/dd HH:mm', 'en').format(DateTime.now())}',
-            style: pw.TextStyle(
-                font: arabicFont,
-                fontFallback: fallback,
-                fontSize: 9,
-                color: grayColor),
-            textAlign: pw.TextAlign.center,
           ),
         ),
         build: (ctx) => [
           pw.Container(
-            padding: const pw.EdgeInsets.all(20),
+            padding: const pw.EdgeInsets.all(16),
             decoration: pw.BoxDecoration(
-                color: lightGray, borderRadius: pw.BorderRadius.circular(12)),
+              color: _yellowLight,
+              borderRadius: pw.BorderRadius.circular(8),
+              border: pw.Border.all(color: _yellow),
+            ),
             child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
               children: [
-                _statCard('عدد الفواتير', '${invoices.length}', primaryColor,
-                    fallback, arabicFont, monoFont),
-                _statCard('إجمالي USD', '\$${totalUSD.toStringAsFixed(2)}',
-                    tealColor, fallback, arabicFont, monoFont),
+                _statCard('عدد الفواتير', '${invoices.length}'),
                 _statCard(
-                    'إجمالي SYP',
-                    '${numFmt.format(totalSYP.round())} ل.س',
-                    PdfColor.fromHex('#D97706'),
-                    fallback,
-                    arabicFont,
-                    monoFont),
-                _statCard(
-                    'عدد الأصناف',
-                    '$totalItems',
-                    PdfColor.fromHex('#7C3AED'),
-                    fallback,
-                    arabicFont,
-                    monoFont),
+                    'إجمالي المبيعات', '\$${decimalFormat.format(totalUSD)}'),
+                _statCard('عدد الأصناف', '$totalItems'),
               ],
             ),
           ),
           pw.SizedBox(height: 24),
           pw.Table(
-            border: pw.TableBorder.all(color: borderColor),
+            border: pw.TableBorder.all(color: _borderGray, width: 0.5),
             columnWidths: {
-              0: const pw.FlexColumnWidth(2),
-              1: const pw.FlexColumnWidth(2),
+              0: const pw.FlexColumnWidth(1.5),
+              1: const pw.FlexColumnWidth(1),
               2: const pw.FlexColumnWidth(1.5),
-              3: const pw.FlexColumnWidth(1.5),
+              3: const pw.FlexColumnWidth(2.5),
               4: const pw.FlexColumnWidth(2),
             },
             children: [
               pw.TableRow(
-                decoration: pw.BoxDecoration(color: primaryColor),
+                decoration: pw.BoxDecoration(color: _black),
                 children: [
-                  _tableHeader('رقم الفاتورة', fallback, arabicFontBold),
-                  _tableHeader('العميل', fallback, arabicFontBold),
-                  _tableHeader('التاريخ', fallback, arabicFontBold),
-                  _tableHeader('الأصناف', fallback, arabicFontBold),
-                  _tableHeader('الإجمالي', fallback, arabicFontBold),
+                  _tableHeader('الإجمالي'),
+                  _tableHeader('الأصناف'),
+                  _tableHeader('التاريخ'),
+                  _tableHeader('العميل'),
+                  _tableHeader('رقم الفاتورة'),
                 ],
               ),
-              ...invoices.map((inv) => pw.TableRow(
-                    children: [
-                      _tableCell(
-                          inv.invoiceNumber, fallback, monoFont, arabicFont,
-                          isMono: true),
-                      _tableCell(
-                          inv.customerName, fallback, monoFont, arabicFont),
-                      _tableCell(dateFmt.format(inv.date), fallback, monoFont,
-                          arabicFont,
-                          isMono: true),
-                      _tableCell(
-                          '${inv.items.length}', fallback, monoFont, arabicFont,
-                          textAlign: pw.TextAlign.center),
-                      _tableCell('\$${inv.totalUSD.toStringAsFixed(2)}',
-                          fallback, monoFont, arabicFont,
-                          isMono: true, color: primaryColor),
-                    ],
-                  )),
+              ...invoices.asMap().entries.map((entry) {
+                final index = entry.key;
+                final inv = entry.value;
+                return pw.TableRow(
+                  decoration: pw.BoxDecoration(
+                      color: index % 2 == 1 ? _lightGray : _white),
+                  children: [
+                    _tableCell('\$${decimalFormat.format(inv.totalUSD)}'),
+                    _tableCell('${inv.items.length}'),
+                    _tableCell(dateFormat.format(inv.date)),
+                    _tableCell(inv.customerName, isArabic: true),
+                    _tableCell(inv.invoiceNumber),
+                  ],
+                );
+              }),
             ],
           ),
         ],
@@ -876,55 +824,24 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _statCard(String label, String value, PdfColor color,
-      List<pw.Font> fallback, pw.Font arabicFont, pw.Font monoFont) {
+  static pw.Widget _statCard(String label, String value) {
     return pw.Column(
       children: [
         pw.Text(label,
             style: pw.TextStyle(
-                font: arabicFont,
-                fontFallback: fallback,
+                font: _arabicRegular,
+                fontFallback: _fontFallback,
                 fontSize: 10,
-                color: PdfColor.fromHex('#64748B'))),
+                color: _mediumGray),
+            textDirection: pw.TextDirection.rtl),
         pw.SizedBox(height: 4),
         pw.Text(value,
             style: pw.TextStyle(
-                font: monoFont,
-                fontFallback: fallback,
-                fontSize: 14,
-                color: color)),
+                font: _arabicBold,
+                fontFallback: _fontFallback,
+                fontSize: 16,
+                color: _black)),
       ],
-    );
-  }
-
-  static pw.Widget _tableHeader(
-      String text, List<pw.Font> fallback, pw.Font arabicFontBold) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      child: pw.Text(text,
-          style: pw.TextStyle(
-              font: arabicFontBold,
-              fontFallback: fallback,
-              fontSize: 11,
-              color: PdfColors.white),
-          textAlign: pw.TextAlign.center),
-    );
-  }
-
-  static pw.Widget _tableCell(
-      String text, List<pw.Font> fallback, pw.Font monoFont, pw.Font arabicFont,
-      {bool isMono = false,
-      PdfColor? color,
-      pw.TextAlign textAlign = pw.TextAlign.right}) {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
-      child: pw.Text(text,
-          style: pw.TextStyle(
-              font: isMono ? monoFont : arabicFont,
-              fontFallback: fallback,
-              fontSize: 10,
-              color: color ?? PdfColor.fromHex('#1E293B')),
-          textAlign: textAlign),
     );
   }
 }
