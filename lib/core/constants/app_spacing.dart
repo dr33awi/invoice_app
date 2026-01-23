@@ -1,166 +1,162 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 /// Enterprise Spacing System
-/// Based on 4/8 Grid System
+/// Based on 4/8 Grid System with ScreenUtil support
 abstract class AppSpacing {
   // ═══════════════════════════════════════════════════════════
-  // BASE SPACING VALUES
+  // BASE SPACING VALUES (responsive)
   // ═══════════════════════════════════════════════════════════
 
   /// Extra small spacing (6px)
-  static const double xs = 6;
+  static double get xs => 6.w;
 
   /// Small spacing (10px)
-  static const double sm = 10;
+  static double get sm => 10.w;
 
   /// Medium spacing (14px)
-  static const double md = 14;
+  static double get md => 14.w;
 
   /// Large spacing (18px)
-  static const double lg = 18;
+  static double get lg => 18.w;
 
   /// Extra large spacing (24px)
-  static const double xl = 24;
+  static double get xl => 24.w;
 
   /// Extra extra large spacing (32px)
-  static const double xxl = 32;
+  static double get xxl => 32.w;
 
   // ═══════════════════════════════════════════════════════════
   // COMPONENT SPECIFIC SPACING
   // ═══════════════════════════════════════════════════════════
 
   /// Card internal padding
-  static const double cardPadding = 14;
+  static double get cardPadding => 14.w;
 
   /// Screen edge padding
-  static const double screenPadding = 16;
+  static double get screenPadding => 16.w;
 
   /// List item spacing
-  static const double listItemSpacing = 10;
+  static double get listItemSpacing => 10.h;
 
   /// Section spacing (between major sections)
-  static const double sectionSpacing = 24;
+  static double get sectionSpacing => 24.h;
 
   /// Form field spacing
-  static const double fieldSpacing = 14;
+  static double get fieldSpacing => 14.h;
 
   // ═══════════════════════════════════════════════════════════
   // BORDER RADIUS VALUES
   // ═══════════════════════════════════════════════════════════
 
   /// Card border radius (8px)
-  static const double radiusCard = 8;
+  static double get radiusCard => 8.r;
 
   /// Button border radius (6px)
-  static const double radiusButton = 6;
+  static double get radiusButton => 6.r;
 
   /// Input field border radius (6px)
-  static const double radiusField = 6;
+  static double get radiusField => 6.r;
 
   /// Chip border radius (4px)
-  static const double radiusChip = 4;
+  static double get radiusChip => 4.r;
 
   /// Dialog border radius (10px)
-  static const double radiusDialog = 10;
+  static double get radiusDialog => 10.r;
 
   /// Bottom sheet border radius (16px)
-  static const double radiusBottomSheet = 16;
+  static double get radiusBottomSheet => 16.r;
 
   /// Full circle (for avatars, FABs)
-  static const double radiusCircle = 999;
+  static double get radiusCircle => 999.r;
 
   // ═══════════════════════════════════════════════════════════
   // ICON SIZES
   // ═══════════════════════════════════════════════════════════
 
   /// Small icon (16px)
-  static const double iconSm = 16;
+  static double get iconSm => 16.sp;
 
   /// Medium icon (20px)
-  static const double iconMd = 20;
+  static double get iconMd => 20.sp;
 
   /// Large icon (24px)
-  static const double iconLg = 24;
+  static double get iconLg => 24.sp;
 
   /// Extra large icon (32px)
-  static const double iconXl = 32;
+  static double get iconXl => 32.sp;
 
   // ═══════════════════════════════════════════════════════════
   // BUTTON HEIGHTS
   // ═══════════════════════════════════════════════════════════
 
   /// Small button height (32px)
-  static const double buttonHeightSm = 32;
+  static double get buttonHeightSm => 32.h;
 
   /// Medium button height (40px)
-  static const double buttonHeightMd = 40;
+  static double get buttonHeightMd => 40.h;
 
   /// Large button height (48px)
-  static const double buttonHeightLg = 48;
+  static double get buttonHeightLg => 48.h;
 
   // ═══════════════════════════════════════════════════════════
   // EDGE INSETS HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  static const EdgeInsets paddingXs = EdgeInsets.all(xs);
-  static const EdgeInsets paddingSm = EdgeInsets.all(sm);
-  static const EdgeInsets paddingMd = EdgeInsets.all(md);
-  static const EdgeInsets paddingLg = EdgeInsets.all(lg);
-  static const EdgeInsets paddingXl = EdgeInsets.all(xl);
+  static EdgeInsets get paddingXs => EdgeInsets.all(6.w);
+  static EdgeInsets get paddingSm => EdgeInsets.all(10.w);
+  static EdgeInsets get paddingMd => EdgeInsets.all(14.w);
+  static EdgeInsets get paddingLg => EdgeInsets.all(18.w);
+  static EdgeInsets get paddingXl => EdgeInsets.all(24.w);
 
-  static const EdgeInsets paddingCard = EdgeInsets.all(cardPadding);
-  static const EdgeInsets paddingScreen = EdgeInsets.all(screenPadding);
+  static EdgeInsets get paddingCard => EdgeInsets.all(14.w);
+  static EdgeInsets get paddingScreen => EdgeInsets.all(16.w);
 
-  static const EdgeInsets paddingHorizontalSm =
-      EdgeInsets.symmetric(horizontal: sm);
-  static const EdgeInsets paddingHorizontalMd =
-      EdgeInsets.symmetric(horizontal: md);
-  static const EdgeInsets paddingHorizontalLg =
-      EdgeInsets.symmetric(horizontal: lg);
+  static EdgeInsets get paddingHorizontalSm =>
+      EdgeInsets.symmetric(horizontal: 10.w);
+  static EdgeInsets get paddingHorizontalMd =>
+      EdgeInsets.symmetric(horizontal: 14.w);
+  static EdgeInsets get paddingHorizontalLg =>
+      EdgeInsets.symmetric(horizontal: 18.w);
 
-  static const EdgeInsets paddingVerticalSm =
-      EdgeInsets.symmetric(vertical: sm);
-  static const EdgeInsets paddingVerticalMd =
-      EdgeInsets.symmetric(vertical: md);
-  static const EdgeInsets paddingVerticalLg =
-      EdgeInsets.symmetric(vertical: lg);
+  static EdgeInsets get paddingVerticalSm =>
+      EdgeInsets.symmetric(vertical: 10.h);
+  static EdgeInsets get paddingVerticalMd =>
+      EdgeInsets.symmetric(vertical: 14.h);
+  static EdgeInsets get paddingVerticalLg =>
+      EdgeInsets.symmetric(vertical: 18.h);
 
   // ═══════════════════════════════════════════════════════════
   // SIZED BOX HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  static const SizedBox gapXs = SizedBox(width: xs, height: xs);
-  static const SizedBox gapSm = SizedBox(width: sm, height: sm);
-  static const SizedBox gapMd = SizedBox(width: md, height: md);
-  static const SizedBox gapLg = SizedBox(width: lg, height: lg);
-  static const SizedBox gapXl = SizedBox(width: xl, height: xl);
+  static SizedBox get gapXs => SizedBox(width: 6.w, height: 6.h);
+  static SizedBox get gapSm => SizedBox(width: 10.w, height: 10.h);
+  static SizedBox get gapMd => SizedBox(width: 14.w, height: 14.h);
+  static SizedBox get gapLg => SizedBox(width: 18.w, height: 18.h);
+  static SizedBox get gapXl => SizedBox(width: 24.w, height: 24.h);
 
-  static const SizedBox gapHorizontalXs = SizedBox(width: xs);
-  static const SizedBox gapHorizontalSm = SizedBox(width: sm);
-  static const SizedBox gapHorizontalMd = SizedBox(width: md);
-  static const SizedBox gapHorizontalLg = SizedBox(width: lg);
+  static SizedBox get gapHorizontalXs => SizedBox(width: 6.w);
+  static SizedBox get gapHorizontalSm => SizedBox(width: 10.w);
+  static SizedBox get gapHorizontalMd => SizedBox(width: 14.w);
+  static SizedBox get gapHorizontalLg => SizedBox(width: 18.w);
 
-  static const SizedBox gapVerticalXs = SizedBox(height: xs);
-  static const SizedBox gapVerticalSm = SizedBox(height: sm);
-  static const SizedBox gapVerticalMd = SizedBox(height: md);
-  static const SizedBox gapVerticalLg = SizedBox(height: lg);
-  static const SizedBox gapVerticalXl = SizedBox(height: xl);
+  static SizedBox get gapVerticalXs => SizedBox(height: 6.h);
+  static SizedBox get gapVerticalSm => SizedBox(height: 10.h);
+  static SizedBox get gapVerticalMd => SizedBox(height: 14.h);
+  static SizedBox get gapVerticalLg => SizedBox(height: 18.h);
+  static SizedBox get gapVerticalXl => SizedBox(height: 24.h);
 
   // ═══════════════════════════════════════════════════════════
   // BORDER RADIUS HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  static final BorderRadius borderRadiusCard =
-      BorderRadius.circular(radiusCard);
-  static final BorderRadius borderRadiusButton =
-      BorderRadius.circular(radiusButton);
-  static final BorderRadius borderRadiusField =
-      BorderRadius.circular(radiusField);
-  static final BorderRadius borderRadiusChip =
-      BorderRadius.circular(radiusChip);
-  static final BorderRadius borderRadiusDialog =
-      BorderRadius.circular(radiusDialog);
-  static final BorderRadius borderRadiusBottomSheet = BorderRadius.vertical(
-    top: Radius.circular(radiusBottomSheet),
-  );
+  static BorderRadius get borderRadiusCard => BorderRadius.circular(8.r);
+  static BorderRadius get borderRadiusButton => BorderRadius.circular(6.r);
+  static BorderRadius get borderRadiusField => BorderRadius.circular(6.r);
+  static BorderRadius get borderRadiusChip => BorderRadius.circular(4.r);
+  static BorderRadius get borderRadiusDialog => BorderRadius.circular(10.r);
+  static BorderRadius get borderRadiusBottomSheet => BorderRadius.vertical(
+        top: Radius.circular(16.r),
+      );
 }

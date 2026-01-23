@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:wholesale_shoes_invoice/data/models/brand_model.dart';
@@ -5,12 +6,27 @@ import 'package:wholesale_shoes_invoice/data/models/category_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/customer_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/invoice_model.dart';
 import 'package:wholesale_shoes_invoice/data/models/product_model.dart';
-import 'package:wholesale_shoes_invoice/data/repositories/category_brand_repository.dart';
-import 'package:wholesale_shoes_invoice/data/repositories/customer_repository.dart';
-import 'package:wholesale_shoes_invoice/data/repositories/invoice_repository.dart';
-import 'package:wholesale_shoes_invoice/data/repositories/product_repository.dart';
-import 'package:wholesale_shoes_invoice/data/repositories/settings_repository.dart';
+import 'package:wholesale_shoes_invoice/data/models/company_model.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/category_brand_repository_new.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/customer_repository_new.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/invoice_repository_new.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/product_repository_new.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/settings_repository_new.dart';
+import 'package:wholesale_shoes_invoice/data/repositories/statistics_repository.dart';
+import 'package:wholesale_shoes_invoice/core/services/firestore_service.dart';
+import 'package:wholesale_shoes_invoice/core/services/realtime_sync_service.dart';
+import 'package:wholesale_shoes_invoice/core/services/initial_sync_service.dart';
 
+// ═══════════════════════════════════════════════════════════
+// FIRESTORE SERVICE PROVIDER
+// ═══════════════════════════════════════════════════════════
+
+final firestoreServiceProvider = Provider<FirestoreService>((ref) {
+  return FirestoreService();
+});
+
+/// تفعيل/تعطيل Firestore (اضبطه على true بعد تفعيل Firebase)
+final enableFirestoreProvider = StateProvider<bool>((ref) => true);
 // ═══════════════════════════════════════════════════════════
 // HIVE BOXES PROVIDERS
 // ═══════════════════════════════════════════════════════════
@@ -45,32 +61,194 @@ final customersBoxProvider = Provider<Box<CustomerModel>>((ref) {
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final box = ref.watch(productsBoxProvider);
-  return ProductRepositoryImpl(localBox: box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return ProductRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
 });
 
 final invoiceRepositoryProvider = Provider<InvoiceRepository>((ref) {
   final box = ref.watch(invoicesBoxProvider);
-  return InvoiceRepositoryImpl(localBox: box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return InvoiceRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
 });
 
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   final box = ref.watch(settingsBoxProvider);
-  return SettingsRepositoryImpl(localBox: box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return SettingsRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
 });
 
-final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
+final categoryRepositoryProvider = Provider<CategoryRepositoryImpl>((ref) {
   final box = ref.watch(categoriesBoxProvider);
-  return CategoryRepository(box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return CategoryRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
 });
 
-final brandRepositoryProvider = Provider<BrandRepository>((ref) {
+final brandRepositoryProvider = Provider<BrandRepositoryImpl>((ref) {
   final box = ref.watch(brandsBoxProvider);
-  return BrandRepository(box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return BrandRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
 });
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   final box = ref.watch(customersBoxProvider);
-  return CustomerRepository(box);
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  return CustomerRepositoryImpl(
+    localBox: box,
+    firestoreService: firestoreService,
+    enableFirestore: enableFirestore,
+  );
+});
+
+final statisticsRepositoryProvider = Provider<StatisticsRepository>((ref) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return StatisticsRepository(firestoreService: firestoreService);
+});
+
+// ═══════════════════════════════════════════════════════════
+// INITIAL SYNC SERVICE
+// ═══════════════════════════════════════════════════════════
+
+final initialSyncServiceProvider = Provider<InitialSyncService>((ref) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final invoicesBox = ref.watch(invoicesBoxProvider);
+  final customersBox = ref.watch(customersBoxProvider);
+  final productsBox = ref.watch(productsBoxProvider);
+  final categoriesBox = ref.watch(categoriesBoxProvider);
+  final brandsBox = ref.watch(brandsBoxProvider);
+  final settingsBox = ref.watch(settingsBoxProvider);
+
+  return InitialSyncService(
+    firestoreService: firestoreService,
+    invoicesBox: invoicesBox,
+    customersBox: customersBox,
+    productsBox: productsBox,
+    categoriesBox: categoriesBox,
+    brandsBox: brandsBox,
+    settingsBox: settingsBox,
+  );
+});
+
+/// Provider لتنفيذ المزامنة الأولية
+final initialSyncProvider = FutureProvider<InitialSyncResult>((ref) async {
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  if (!enableFirestore) {
+    return InitialSyncResult(
+      success: true,
+      message: 'Firestore غير مُفعّل',
+    );
+  }
+
+  final service = ref.watch(initialSyncServiceProvider);
+  return service.performInitialSync();
+});
+
+// ═══════════════════════════════════════════════════════════
+// REALTIME SYNC SERVICE
+// ═══════════════════════════════════════════════════════════
+
+final realtimeSyncServiceProvider = Provider<RealtimeSyncService>((ref) {
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  final invoicesBox = ref.watch(invoicesBoxProvider);
+  final customersBox = ref.watch(customersBoxProvider);
+  final productsBox = ref.watch(productsBoxProvider);
+  final categoriesBox = ref.watch(categoriesBoxProvider);
+  final brandsBox = ref.watch(brandsBoxProvider);
+  final settingsBox = ref.watch(settingsBoxProvider);
+
+  final service = RealtimeSyncService(
+    firestoreService: firestoreService,
+    invoicesBox: invoicesBox,
+    customersBox: customersBox,
+    productsBox: productsBox,
+    categoriesBox: categoriesBox,
+    brandsBox: brandsBox,
+    settingsBox: settingsBox,
+  );
+
+  // بدء الاستماع تلقائياً إذا كان Firestore مُفعّلاً
+  final enableFirestore = ref.watch(enableFirestoreProvider);
+  if (enableFirestore) {
+    // تنفيذ المزامنة الأولية في الخلفية
+    final initialSyncService = ref.read(initialSyncServiceProvider);
+    initialSyncService.performInitialSync().then((_) {
+      // بعد المزامنة الأولية، ابدأ الاستماع للتحديثات
+      service.startListening();
+    });
+  }
+
+  ref.onDispose(() {
+    service.dispose();
+  });
+
+  return service;
+});
+
+/// Stream لأحداث المزامنة في الوقت الحقيقي
+final realtimeSyncEventsProvider = StreamProvider<RealtimeSyncEvent>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.syncEvents;
+});
+
+/// Stream للفواتير من المزامنة في الوقت الحقيقي
+final realtimeInvoicesProvider = StreamProvider<List<InvoiceModel>>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.invoicesStream;
+});
+
+/// Stream للعملاء من المزامنة في الوقت الحقيقي
+final realtimeCustomersProvider = StreamProvider<List<CustomerModel>>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.customersStream;
+});
+
+/// Stream للمنتجات من المزامنة في الوقت الحقيقي
+final realtimeProductsProvider = StreamProvider<List<ProductModel>>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.productsStream;
+});
+
+/// Stream للفئات من المزامنة في الوقت الحقيقي
+final realtimeCategoriesProvider = StreamProvider<List<CategoryModel>>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.categoriesStream;
+});
+
+/// Stream للماركات من المزامنة في الوقت الحقيقي
+final realtimeBrandsProvider = StreamProvider<List<BrandModel>>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.brandsStream;
+});
+
+/// Stream لمعلومات الشركة من المزامنة في الوقت الحقيقي
+final realtimeCompanyInfoProvider = StreamProvider<CompanyModel>((ref) {
+  final service = ref.watch(realtimeSyncServiceProvider);
+  return service.companyInfoStream;
 });
 
 // ═══════════════════════════════════════════════════════════
@@ -139,22 +317,46 @@ final exchangeRateStreamProvider = StreamProvider<double>((ref) {
 
 class ProductsNotifier extends StateNotifier<AsyncValue<List<ProductModel>>> {
   final ProductRepository _repository;
-  final Ref _ref;
+  StreamSubscription? _watchSubscription;
 
-  ProductsNotifier(this._repository, this._ref)
-      : super(const AsyncValue.loading()) {
+  ProductsNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadProducts();
+    _watchHiveChanges();
   }
 
-  Future<void> loadProducts() async {
-    state = const AsyncValue.loading();
+  void _watchHiveChanges() {
+    // الاستماع لتغييرات Hive مباشرة
+    _watchSubscription = _repository.watchProducts().listen((products) {
+      state = AsyncValue.data(products);
+    });
+  }
+
+  @override
+  void dispose() {
+    _watchSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadProducts({bool showLoading = true}) async {
+    // Don't show loading if we already have data (for refresh)
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final products = await _repository.getProducts();
       state = AsyncValue.data(products);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      // Keep old data if available
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
+
+  /// Refresh without showing loading indicator
+  Future<void> refresh() => loadProducts(showLoading: false);
 
   Future<void> addProduct(ProductModel product) async {
     try {
@@ -188,27 +390,54 @@ final productsNotifierProvider =
     StateNotifierProvider<ProductsNotifier, AsyncValue<List<ProductModel>>>(
         (ref) {
   final repository = ref.watch(productRepositoryProvider);
-  return ProductsNotifier(repository, ref);
+  return ProductsNotifier(repository);
 });
 
 class InvoicesNotifier extends StateNotifier<AsyncValue<List<InvoiceModel>>> {
   final InvoiceRepository _repository;
   final Ref _ref;
+  StreamSubscription? _watchSubscription;
 
   InvoicesNotifier(this._repository, this._ref)
       : super(const AsyncValue.loading()) {
     loadInvoices();
+    _watchHiveChanges();
   }
 
-  Future<void> loadInvoices() async {
-    state = const AsyncValue.loading();
+  void _watchHiveChanges() {
+    // الاستماع لتغييرات Hive مباشرة
+    _watchSubscription = _repository.watchInvoices().listen((invoices) {
+      state = AsyncValue.data(invoices);
+      _ref.invalidate(todayStatsProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    _watchSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadInvoices({bool showLoading = true}) async {
+    // Don't show loading if we already have data (for refresh)
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final invoices = await _repository.getInvoices();
       state = AsyncValue.data(invoices);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      // Keep old data if available
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
+
+  /// Refresh without showing loading indicator
+  Future<void> refresh() => loadInvoices(showLoading: false);
 
   Future<void> addInvoice(InvoiceModel invoice) async {
     try {
@@ -260,13 +489,19 @@ class ExchangeRateNotifier extends StateNotifier<AsyncValue<double>> {
     loadRate();
   }
 
-  Future<void> loadRate() async {
-    state = const AsyncValue.loading();
+  Future<void> loadRate({bool showLoading = true}) async {
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final rate = await _repository.getExchangeRate();
       state = AsyncValue.data(rate);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
 
@@ -292,21 +527,45 @@ final exchangeRateNotifierProvider =
 
 class CategoriesNotifier
     extends StateNotifier<AsyncValue<List<CategoryModel>>> {
-  final CategoryRepository _repository;
+  final CategoryRepositoryImpl _repository;
+  StreamSubscription? _watchSubscription;
 
   CategoriesNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadCategories();
+    _watchHiveChanges();
   }
 
-  Future<void> loadCategories() async {
-    state = const AsyncValue.loading();
+  void _watchHiveChanges() {
+    // الاستماع لتغييرات Hive مباشرة
+    _watchSubscription = _repository.watchCategories().listen((categories) {
+      state = AsyncValue.data(categories);
+    });
+  }
+
+  @override
+  void dispose() {
+    _watchSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadCategories({bool showLoading = true}) async {
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final categories = _repository.getAllCategories();
       state = AsyncValue.data(categories);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
+
+  /// Refresh without showing loading indicator
+  Future<void> refresh() => loadCategories(showLoading: false);
 
   Future<void> addCategory(CategoryModel category) async {
     try {
@@ -348,21 +607,45 @@ final categoriesNotifierProvider =
 // ═══════════════════════════════════════════════════════════
 
 class BrandsNotifier extends StateNotifier<AsyncValue<List<BrandModel>>> {
-  final BrandRepository _repository;
+  final BrandRepositoryImpl _repository;
+  StreamSubscription? _watchSubscription;
 
   BrandsNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadBrands();
+    _watchHiveChanges();
   }
 
-  Future<void> loadBrands() async {
-    state = const AsyncValue.loading();
+  void _watchHiveChanges() {
+    // الاستماع لتغييرات Hive مباشرة
+    _watchSubscription = _repository.watchBrands().listen((brands) {
+      state = AsyncValue.data(brands);
+    });
+  }
+
+  @override
+  void dispose() {
+    _watchSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadBrands({bool showLoading = true}) async {
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final brands = _repository.getAllBrands();
       state = AsyncValue.data(brands);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
+
+  /// Refresh without showing loading indicator
+  Future<void> refresh() => loadBrands(showLoading: false);
 
   Future<void> addBrand(BrandModel brand) async {
     try {
@@ -404,20 +687,44 @@ final brandsNotifierProvider =
 
 class CustomersNotifier extends StateNotifier<AsyncValue<List<CustomerModel>>> {
   final CustomerRepository _repository;
+  StreamSubscription? _watchSubscription;
 
   CustomersNotifier(this._repository) : super(const AsyncValue.loading()) {
     loadCustomers();
+    _watchHiveChanges();
   }
 
-  Future<void> loadCustomers() async {
-    state = const AsyncValue.loading();
+  void _watchHiveChanges() {
+    // الاستماع لتغييرات Hive مباشرة
+    _watchSubscription = _repository.watchCustomers().listen((customers) {
+      state = AsyncValue.data(customers);
+    });
+  }
+
+  @override
+  void dispose() {
+    _watchSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> loadCustomers({bool showLoading = true}) async {
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
     try {
       final customers = _repository.getAllCustomers();
       state = AsyncValue.data(customers);
     } catch (e, st) {
-      state = AsyncValue.error(e, st);
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
     }
   }
+
+  /// Refresh without showing loading indicator
+  Future<void> refresh() => loadCustomers(showLoading: false);
 
   Future<void> addCustomer(CustomerModel customer) async {
     try {

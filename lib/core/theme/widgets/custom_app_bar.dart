@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:wholesale_shoes_invoice/core/constants/app_colors.dart';
 import 'package:wholesale_shoes_invoice/core/constants/app_spacing.dart';
 
@@ -30,7 +31,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  Size get preferredSize => Size.fromHeight(kToolbarHeight.h);
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +49,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.symmetric(horizontal: 8.w),
           child: Row(
             children: [
               // Leading (Menu or Back button)
@@ -96,18 +97,18 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildBackButton(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 40.w,
+      height: 40.h,
       decoration: BoxDecoration(
         color: AppColors.screenBg,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.r),
         border: Border.all(color: AppColors.borderColor),
       ),
       child: IconButton(
         onPressed: onBackPressed ?? () => Navigator.of(context).pop(),
-        icon: const Icon(
+        icon: Icon(
           Icons.arrow_back_ios_new,
-          size: 16,
+          size: 16.sp,
           color: AppColors.textSecondary,
         ),
         padding: EdgeInsets.zero,
@@ -117,17 +118,17 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildMenuButton(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 40.w,
+      height: 40.h,
       decoration: BoxDecoration(
         color: AppColors.slate800,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.r),
       ),
       child: IconButton(
         onPressed: onMenuPressed ?? () => Scaffold.of(context).openDrawer(),
-        icon: const Icon(
+        icon: Icon(
           Icons.menu,
-          size: 20,
+          size: 20.sp,
           color: Colors.white,
         ),
         padding: EdgeInsets.zero,
@@ -158,21 +159,21 @@ class AppBarIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: Stack(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 40.w,
+            height: 40.h,
             decoration: BoxDecoration(
               color: backgroundColor ?? Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
             child: IconButton(
               onPressed: onPressed,
               icon: Icon(
                 icon,
-                size: 22,
+                size: 22.sp,
                 color: iconColor ?? AppColors.textSecondary,
               ),
               padding: EdgeInsets.zero,
@@ -180,11 +181,11 @@ class AppBarIconButton extends StatelessWidget {
           ),
           if (showBadge)
             Positioned(
-              top: 6,
-              right: 6,
+              top: 6.h,
+              right: 6.w,
               child: Container(
-                width: 8,
-                height: 8,
+                width: 8.w,
+                height: 8.h,
                 decoration: const BoxDecoration(
                   color: AppColors.error,
                   shape: BoxShape.circle,
@@ -225,21 +226,22 @@ class AppBarTextButton extends StatelessWidget {
         children: [
           if (isLoading)
             SizedBox(
-              width: 18,
-              height: 18,
+              width: 18.w,
+              height: 18.h,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 color: buttonColor,
               ),
             )
           else if (icon != null)
-            Icon(icon, size: 20, color: buttonColor),
-          if (icon != null || isLoading) const SizedBox(width: 6),
+            Icon(icon, size: 20.sp, color: buttonColor),
+          if (icon != null || isLoading) SizedBox(width: 6.w),
           Text(
             text,
             style: TextStyle(
               color: buttonColor,
               fontWeight: FontWeight.w600,
+              fontSize: 14.sp,
             ),
           ),
         ],

@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ═══════════════════════════════════════════════════════════
+    // دوال مساعدة للتحقق من الصلاحيات
+    // ═══════════════════════════════════════════════════════════
+    
+    // التحقق من أن المستخدم مسجل دخول (عبر الهاتف أو أي طريقة أخرى)
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // التحقق من أن المستخدم هو مالك المستند
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // التحقق من أن المستخدم هو منشئ المستند (للتعديل والحذف)
+    function isCreatorForWrite() {
+      return isAuthenticated() && (
+        !('createdBy' in resource.data) || 
+        resource.data.createdBy == null ||
+        request.auth.uid == resource.data.createdBy
+      );
+    }
+    
+    // التحقق من أن المستخدم سيكون منشئ المستند الجديد
+    function willBeCreator() {
+      return isAuthenticated() && (
+        !('createdBy' in request.resource.data) ||
+        request.auth.uid == request.resource.data.createdBy
+      );
+    }
+    
+    // التحقق من عدم تغيير حقل createdBy
+    function creatorNotChanged() {
+      return !('createdBy' in resource.data) ||
+             !('createdBy' in request.resource.data) ||
+             resource.data.createdBy == request.resource.data.createdBy;
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد الفواتير - القراءة للمصادق عليهم، الكتابة للمالك فقط
+    // ═══════════════════════════════════════════════════════════
+    match /invoices/{invoiceId} {
+      // القراءة: أي مستخدم مصادق عليه يمكنه القراءة
+      allow read: if isAuthenticated();
+      
+      // الإنشاء: يجب أن يكون مسجل دخول ويسجل نفسه كمنشئ
+      allow create: if isAuthenticated() && willBeCreator();
+      
+      // التحديث: فقط صاحب المستند ولا يمكن تغيير المنشئ
+      allow update: if isCreatorForWrite() && creatorNotChanged();
+      
+      // الحذف: فقط صاحب المستند
+      allow delete: if isCreatorForWrite();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد العملاء - القراءة للمصادق عليهم، الكتابة للمالك فقط
+    // ═══════════════════════════════════════════════════════════
+    match /customers/{customerId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && willBeCreator();
+      allow update: if isCreatorForWrite() && creatorNotChanged();
+      allow delete: if isCreatorForWrite();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد المنتجات - القراءة للمصادق عليهم، الكتابة للمالك فقط
+    // ═══════════════════════════════════════════════════════════
+    match /products/{productId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && willBeCreator();
+      allow update: if isCreatorForWrite() && creatorNotChanged();
+      allow delete: if isCreatorForWrite();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد الفئات - القراءة للمصادق عليهم، الكتابة للمالك فقط
+    // ═══════════════════════════════════════════════════════════
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && willBeCreator();
+      allow update: if isCreatorForWrite() && creatorNotChanged();
+      allow delete: if isCreatorForWrite();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد الماركات - القراءة للمصادق عليهم، الكتابة للمالك فقط
+    // ═══════════════════════════════════════════════════════════
+    match /brands/{brandId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && willBeCreator();
+      allow update: if isCreatorForWrite() && creatorNotChanged();
+      allow delete: if isCreatorForWrite();
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد الإعدادات - محمية بالمصادقة
+    // ═══════════════════════════════════════════════════════════
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+      
+      // تاريخ سعر الصرف
+      match /history/{historyId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد الإحصائيات - محمية بالمصادقة
+    // ═══════════════════════════════════════════════════════════
+    match /statistics/{statId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+      
+      match /{subcollection}/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated();
+      }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // قواعد المستخدمين - للموافقة على التسجيل
+    // ═══════════════════════════════════════════════════════════
+    match /users/{userId} {
+      // كل مستخدم يمكنه قراءة بياناته
+      allow read: if isOwner(userId);
+      
+      // السماح بإنشاء حساب جديد
+      allow create: if isAuthenticated() && isOwner(userId);
+      
+      // السماح بتحديث حالة الموافقة (عند إدخال رمز صحيح)
+      allow update: if isOwner(userId) && 
+                       (!('approved' in resource.data) || 
+                        resource.data.approved == false ||
+                        request.resource.data.approved == true);
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // رفض أي وصول غير محدد
+    // ═══════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

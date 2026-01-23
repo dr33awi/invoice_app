@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_typography.dart';
@@ -65,15 +66,15 @@ class AppTheme {
           titleTextStyle: AppTypography.titleLarge.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.w600,
-            fontSize: 18,
+            fontSize: 18.sp,
           ),
-          iconTheme: const IconThemeData(
+          iconTheme: IconThemeData(
             color: AppColors.textSecondary,
-            size: 22,
+            size: 22.sp,
           ),
-          actionsIconTheme: const IconThemeData(
+          actionsIconTheme: IconThemeData(
             color: AppColors.textSecondary,
-            size: 22,
+            size: 22.sp,
           ),
         ),
 
@@ -86,7 +87,7 @@ class AppTheme {
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            borderRadius: AppSpacing.borderRadiusCard,
             side: const BorderSide(
               color: AppColors.borderColor,
               width: 1,
@@ -107,13 +108,13 @@ class AppTheme {
             disabledForegroundColor: AppColors.textMuted,
             elevation: 0,
             shadowColor: Colors.transparent,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
+            padding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 12.h,
             ),
-            minimumSize: const Size(88, AppSpacing.buttonHeightMd),
+            minimumSize: Size(88.w, AppSpacing.buttonHeightMd),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusButton),
+              borderRadius: AppSpacing.borderRadiusButton,
             ),
             textStyle: AppTypography.labelLarge.copyWith(
               fontWeight: FontWeight.w600,
@@ -131,13 +132,13 @@ class AppTheme {
             foregroundColor: Colors.white,
             disabledBackgroundColor: AppColors.borderColor,
             disabledForegroundColor: AppColors.textMuted,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
+            padding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 12.h,
             ),
-            minimumSize: const Size(88, AppSpacing.buttonHeightMd),
+            minimumSize: Size(88.w, AppSpacing.buttonHeightMd),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusButton),
+              borderRadius: AppSpacing.borderRadiusButton,
             ),
             textStyle: AppTypography.labelLarge.copyWith(
               fontWeight: FontWeight.w600,
@@ -157,13 +158,13 @@ class AppTheme {
               color: AppColors.blue600,
               width: 1.5,
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 12,
+            padding: EdgeInsets.symmetric(
+              horizontal: 20.w,
+              vertical: 12.h,
             ),
-            minimumSize: const Size(88, AppSpacing.buttonHeightMd),
+            minimumSize: Size(88.w, AppSpacing.buttonHeightMd),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusButton),
+              borderRadius: AppSpacing.borderRadiusButton,
             ),
             textStyle: AppTypography.labelLarge.copyWith(
               fontWeight: FontWeight.w600,
@@ -179,13 +180,13 @@ class AppTheme {
           style: TextButton.styleFrom(
             foregroundColor: AppColors.blue600,
             disabledForegroundColor: AppColors.textMuted,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
+            padding: EdgeInsets.symmetric(
+              horizontal: 16.w,
+              vertical: 8.h,
             ),
-            minimumSize: const Size(64, 36),
+            minimumSize: Size(64.w, 36.h),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusButton),
+              borderRadius: AppSpacing.borderRadiusButton,
             ),
             textStyle: AppTypography.labelLarge.copyWith(
               fontWeight: FontWeight.w600,
@@ -216,7 +217,7 @@ class AppTheme {
           hoverElevation: 4,
           highlightElevation: 4,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
         ),
 
@@ -227,47 +228,47 @@ class AppTheme {
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: AppColors.surfaceBg,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 12,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: 14.w,
+            vertical: 12.h,
           ),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.borderColor,
               width: 1,
             ),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.borderColor,
               width: 1,
             ),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.blue600,
               width: 2,
             ),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.error,
               width: 1,
             ),
           ),
           focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.error,
               width: 2,
             ),
           ),
           disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusField),
+            borderRadius: AppSpacing.borderRadiusField,
             borderSide: const BorderSide(
               color: AppColors.borderColor,
               width: 1,
@@ -312,9 +313,9 @@ class AppTheme {
           secondaryLabelStyle: AppTypography.labelMedium.copyWith(
             color: AppColors.blue600,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusChip),
+            borderRadius: AppSpacing.borderRadiusChip,
             side: const BorderSide(color: AppColors.borderColor),
           ),
         ),
@@ -327,7 +328,7 @@ class AppTheme {
           backgroundColor: AppColors.surfaceBg,
           elevation: 8,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusDialog),
+            borderRadius: AppSpacing.borderRadiusDialog,
           ),
           titleTextStyle: AppTypography.headlineMedium.copyWith(
             color: AppColors.textPrimary,
@@ -341,15 +342,13 @@ class AppTheme {
         // BOTTOM SHEET
         // ═══════════════════════════════════════════════════════════
 
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme: BottomSheetThemeData(
           backgroundColor: AppColors.surfaceBg,
           elevation: 8,
           modalBackgroundColor: AppColors.surfaceBg,
           modalElevation: 8,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(AppSpacing.radiusBottomSheet),
-            ),
+            borderRadius: AppSpacing.borderRadiusBottomSheet,
           ),
         ),
 
@@ -364,7 +363,7 @@ class AppTheme {
           ),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            borderRadius: AppSpacing.borderRadiusCard,
           ),
         ),
 
@@ -373,12 +372,12 @@ class AppTheme {
         // ═══════════════════════════════════════════════════════════
 
         listTileTheme: ListTileThemeData(
-          contentPadding: const EdgeInsets.symmetric(
+          contentPadding: EdgeInsets.symmetric(
             horizontal: AppSpacing.cardPadding,
             vertical: AppSpacing.xs,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            borderRadius: AppSpacing.borderRadiusCard,
           ),
           titleTextStyle: AppTypography.titleMedium.copyWith(
             color: AppColors.textPrimary,
@@ -427,14 +426,14 @@ class AppTheme {
           }),
           iconTheme: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return const IconThemeData(
+              return IconThemeData(
                 color: AppColors.blue600,
-                size: 24,
+                size: 24.sp,
               );
             }
-            return const IconThemeData(
+            return IconThemeData(
               color: AppColors.textSecondary,
-              size: 24,
+              size: 24.sp,
             );
           }),
         ),

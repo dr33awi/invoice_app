@@ -147,12 +147,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     ),
                     AppSpacing.gapVerticalMd,
 
-                    // الماركة - حقل قابل للضغط
+                    // الماركة - حقل قابل للضغط (اختياري)
                     _buildSelectableField(
-                      label: 'الماركة *',
+                      label: 'الماركة',
                       value: _selectedBrandName,
                       icon: Icons.branding_watermark_outlined,
                       onTap: () => _showBrandSelector(),
+                      isRequired: false,
                     ),
                     AppSpacing.gapVerticalMd,
 
@@ -244,7 +245,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                           child: TextFormField(
                             controller: _pairsPerPackageController,
                             decoration: const InputDecoration(
-                                labelText: 'جوز*',
+                                labelText: 'الكمية*',
                                 prefixIcon: Icon(Icons.straighten)),
                             keyboardType: TextInputType.number,
                             onChanged: (_) => setState(() {}),
@@ -271,7 +272,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         children: [
                           const Text('إجمالي الأزواج'),
                           Text(
-                            '$totalPairs جوز',
+                            '$totalPairs الكمية',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -721,15 +722,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   Future<void> _saveProduct() async {
     if (!_formKey.currentState!.validate()) return;
 
-    if (_selectedBrandName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('الرجاء اختيار الماركة'),
-            backgroundColor: AppColors.error),
-      );
-      return;
-    }
-
     setState(() => _isSaving = true);
     try {
       final sizeRange =
@@ -738,10 +730,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       final product = ProductModel(
         id: widget.productId ?? const Uuid().v4(),
         name: _nameController.text.trim(),
-        brand: _selectedBrandName!,
+        brandName: _selectedBrandName,
         sizeRange: sizeRange,
         wholesalePrice: double.parse(_priceController.text.trim()),
-        category: _selectedCategoryName,
+        categoryName: _selectedCategoryName,
         packagesCount: int.parse(_packagesCountController.text.trim()),
         pairsPerPackage: int.parse(_pairsPerPackageController.text.trim()),
         createdAt: _existingProduct?.createdAt ?? DateTime.now(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
@@ -25,15 +26,9 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     final productsAsync = ref.watch(productsNotifierProvider);
 
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'المنتجات',
         subtitle: 'إدارة قائمة المنتجات',
-        actions: [
-          AppBarIconButton(
-            icon: Icons.search,
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -143,7 +138,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
       return p.name.toLowerCase().contains(query) ||
           p.brand.toLowerCase().contains(query) ||
           p.sizeRange.contains(query) ||
-          (p.category?.toLowerCase().contains(query) ?? false);
+          p.category.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -292,8 +287,8 @@ class _ProductCard extends StatelessWidget {
               children: [
                 _buildChip('المقاس: ${product.sizeRange}'),
                 _buildChip('${product.packagesCount} طرد'),
-                _buildChip('${product.pairsPerPackage} جوز'),
-                if (product.category != null) _buildChip(product.category!),
+                _buildChip('${product.pairsPerPackage} الكمية'),
+                if (product.category.isNotEmpty) _buildChip(product.category),
               ],
             ),
           ],

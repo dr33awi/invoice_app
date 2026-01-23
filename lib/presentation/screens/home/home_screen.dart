@@ -18,26 +18,17 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: CustomAppBar(
-        title: 'فواتير الأحذية',
+        title: 'شركة المعيار',
         subtitle: 'إدارة المبيعات والمنتجات',
         showBackButton: false,
-        showMenuButton: true,
+        showMenuButton: false,
         actions: [
-          AppBarIconButton(
-            icon: Icons.sync,
-            onPressed: () {
-              ref.invalidate(todayStatsProvider);
-              ref.invalidate(invoicesNotifierProvider);
-              ref.invalidate(productsNotifierProvider);
-            },
-          ),
           AppBarIconButton(
             icon: Icons.settings_outlined,
             onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
           ),
         ],
       ),
-      drawer: _buildDrawer(context),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(todayStatsProvider);
@@ -125,9 +116,9 @@ class HomeScreen extends ConsumerWidget {
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
-                  mainAxisSpacing: AppSpacing.md,
-                  crossAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 1.2,
+                  mainAxisSpacing: AppSpacing.sm,
+                  crossAxisSpacing: AppSpacing.sm,
+                  childAspectRatio: 1.5,
                   children: [
                     _ActionCard(
                       title: 'فاتورة جديدة',
@@ -177,12 +168,12 @@ class HomeScreen extends ConsumerWidget {
                           Navigator.pushNamed(context, AppRoutes.brands),
                     ),
                     _ActionCard(
-                      title: 'سعر الصرف',
-                      subtitle: 'تعديل سعر الدولار',
-                      icon: Icons.currency_exchange,
+                      title: 'الفئات',
+                      subtitle: 'إدارة فئات المنتجات',
+                      icon: Icons.category_outlined,
                       color: AppColors.success,
                       onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.exchangeRate),
+                          Navigator.pushNamed(context, AppRoutes.categories),
                     ),
                   ],
                 ),
@@ -204,164 +195,6 @@ class HomeScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('فاتورة جديدة'),
       ),
-    );
-  }
-
-  Widget _buildDrawer(BuildContext context) {
-    return Drawer(
-      child: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20,
-              bottom: 20,
-              left: 20,
-              right: 20,
-            ),
-            color: AppColors.slate800,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.store,
-                    size: 32,
-                    color: AppColors.slate800,
-                  ),
-                ),
-                AppSpacing.gapVerticalMd,
-                const Text(
-                  'فواتير الأحذية',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Text(
-                  'نظام إدارة المبيعات',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _DrawerItem(
-                  icon: Icons.home_outlined,
-                  title: 'الرئيسية',
-                  isSelected: true,
-                  onTap: () => Navigator.pop(context),
-                ),
-                _DrawerItem(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'الفواتير',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.invoices);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'المنتجات',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.products);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.people_outline,
-                  title: 'العملاء',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.customers);
-                  },
-                ),
-                const Divider(),
-                _DrawerItem(
-                  icon: Icons.branding_watermark_outlined,
-                  title: 'الماركات',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.brands);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.category_outlined,
-                  title: 'الفئات',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.categories);
-                  },
-                ),
-                const Divider(),
-                _DrawerItem(
-                  icon: Icons.currency_exchange,
-                  title: 'سعر الصرف',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.exchangeRate);
-                  },
-                ),
-                _DrawerItem(
-                  icon: Icons.settings_outlined,
-                  title: 'الإعدادات',
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.pushNamed(context, AppRoutes.settings);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DrawerItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _DrawerItem({
-    required this.icon,
-    required this.title,
-    this.isSelected = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? AppColors.blue600 : AppColors.textSecondary,
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: isSelected ? AppColors.blue600 : AppColors.textPrimary,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-        ),
-      ),
-      selected: isSelected,
-      selectedTileColor: AppColors.blue600.withOpacity(0.1),
-      onTap: onTap,
     );
   }
 }
@@ -440,29 +273,31 @@ class _ActionCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
         child: Padding(
-          padding: AppSpacing.paddingCard,
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: color, size: 28),
+                child: Icon(icon, color: color, size: 22),
               ),
-              AppSpacing.gapVerticalSm,
+              const SizedBox(height: 6),
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
               ),
               Text(
                 subtitle,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                    ),
               ),
             ],
           ),

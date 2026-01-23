@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
@@ -23,15 +24,9 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     final customersAsync = ref.watch(customersNotifierProvider);
 
     return Scaffold(
-      appBar: CustomAppBar(
+      appBar: const CustomAppBar(
         title: 'العملاء',
         subtitle: 'إدارة قائمة العملاء',
-        actions: [
-          AppBarIconButton(
-            icon: Icons.search,
-            onPressed: () {},
-          ),
-        ],
       ),
       body: Column(
         children: [
