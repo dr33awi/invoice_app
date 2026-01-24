@@ -11,6 +11,7 @@ import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
+import '../providers/customer_providers.dart';
 
 class InvoicesListScreen extends ConsumerStatefulWidget {
   const InvoicesListScreen({super.key});
@@ -285,13 +286,23 @@ class _InvoicesListScreenState extends ConsumerState<InvoicesListScreen> {
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
+class _InvoiceCard extends ConsumerWidget {
   final InvoiceModel invoice;
 
   const _InvoiceCard({required this.invoice});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // مراقبة بيانات العميل للتحديث التلقائي
+    final customerId = invoice.customerId;
+    final customerData =
+        customerId != null ? ref.watch(customerDataProvider(customerId)) : null;
+
+    // استخدام البيانات المحدثة أو البيانات المحفوظة في الفاتورة كـ fallback
+    final displayName = customerData?.name ?? invoice.customerName;
+    final displayPhone = customerData?.phone ?? invoice.customerPhone;
+    final displayAddress = customerData?.address ?? invoice.customerAddress;
+
     return Card(
       child: InkWell(
         onTap: () => Navigator.pushNamed(
@@ -375,7 +386,7 @@ class _InvoiceCard extends StatelessWidget {
               ),
               const Divider(height: 20),
 
-              // Customer Info Row
+              // Customer Info Row - محدث تلقائياً
               Row(
                 children: [
                   Container(
@@ -387,8 +398,8 @@ class _InvoiceCard extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text(
-                        invoice.customerName.isNotEmpty
-                            ? invoice.customerName[0].toUpperCase()
+                        displayName.isNotEmpty
+                            ? displayName[0].toUpperCase()
                             : '?',
                         style: const TextStyle(
                           fontSize: 18,
@@ -404,13 +415,14 @@ class _InvoiceCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          invoice.customerName,
+                          displayName,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
                         ),
-                        if (invoice.customerPhone != null) ...[
+                        if (displayPhone != null &&
+                            displayPhone.isNotEmpty) ...[
                           const SizedBox(height: 2),
                           Row(
                             children: [
@@ -421,11 +433,38 @@ class _InvoiceCard extends StatelessWidget {
                               ),
                               AppSpacing.gapHorizontalXs,
                               Text(
-                                invoice.customerPhone!,
+                                displayPhone,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ],
+                        // عرض العنوان
+                        if (displayAddress != null &&
+                            displayAddress.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 14,
+                                color: AppColors.textMuted,
+                              ),
+                              AppSpacing.gapHorizontalXs,
+                              Expanded(
+                                child: Text(
+                                  displayAddress,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                          color: AppColors.textSecondary),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),

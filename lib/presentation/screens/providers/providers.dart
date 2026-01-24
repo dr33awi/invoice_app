@@ -470,6 +470,48 @@ class InvoicesNotifier extends StateNotifier<AsyncValue<List<InvoiceModel>>> {
     }
   }
 
+  /// تحديث جميع الفواتير التي تحتوي على العميل المعطى
+  /// [oldCustomerName] - الاسم القديم للعميل للتحقق من الفواتير القديمة
+  Future<void> updateInvoicesForCustomer(
+      String customerId, CustomerModel updatedCustomer,
+      {String? oldCustomerName}) async {
+    try {
+      final currentInvoices = state.valueOrNull ?? [];
+
+      for (final invoice in currentInvoices) {
+        // التحقق من وجود عميل في الفاتورة يطابق العميل المحدث
+        // 1. نتحقق من customerId أولاً
+        final matchById = invoice.customerId != null &&
+            invoice.customerId!.isNotEmpty &&
+            invoice.customerId == customerId;
+
+        // 2. للفواتير القديمة التي لا تحتوي على customerId، نتحقق من الاسم القديم
+        final matchByOldName = (invoice.customerId == null ||
+                invoice.customerId!.isEmpty) &&
+            oldCustomerName != null &&
+            invoice.customerName.toLowerCase() == oldCustomerName.toLowerCase();
+
+        if (matchById || matchByOldName) {
+          // تحديث بيانات العميل في الفاتورة باستخدام copyWith
+          // وإضافة customerId للفواتير القديمة التي لا تحتويه
+          final updated = invoice.copyWith(
+            customerId: customerId, // ربط الفاتورة بـ ID العميل
+            customerName: updatedCustomer.name,
+            customerPhone: updatedCustomer.phone,
+            customerAddress: updatedCustomer.address,
+          );
+          await _repository.updateInvoice(updated);
+        }
+      }
+
+      // تحديث الحالة
+      await loadInvoices(showLoading: false);
+      _ref.invalidate(todayStatsProvider);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<String> generateInvoiceNumber() async {
     return _repository.generateInvoiceNumber();
   }
@@ -687,9 +729,11 @@ final brandsNotifierProvider =
 
 class CustomersNotifier extends StateNotifier<AsyncValue<List<CustomerModel>>> {
   final CustomerRepository _repository;
+  final Ref _ref;
   StreamSubscription? _watchSubscription;
 
-  CustomersNotifier(this._repository) : super(const AsyncValue.loading()) {
+  CustomersNotifier(this._repository, this._ref)
+      : super(const AsyncValue.loading()) {
     loadCustomers();
     _watchHiveChanges();
   }
@@ -737,7 +781,17 @@ class CustomersNotifier extends StateNotifier<AsyncValue<List<CustomerModel>>> {
 
   Future<void> updateCustomer(CustomerModel customer) async {
     try {
+      // الحصول على بيانات العميل القديمة قبل التحديث
+      final oldCustomer = _repository.getCustomerById(customer.id);
+      final oldCustomerName = oldCustomer?.name;
+
       await _repository.updateCustomer(customer);
+
+      // تحديث جميع الفواتير التي تحتوي على هذا العميل
+      final invoicesNotifier = _ref.read(invoicesNotifierProvider.notifier);
+      await invoicesNotifier.updateInvoicesForCustomer(customer.id, customer,
+          oldCustomerName: oldCustomerName);
+
       await loadCustomers();
     } catch (e) {
       rethrow;
@@ -758,5 +812,98 @@ final customersNotifierProvider =
     StateNotifierProvider<CustomersNotifier, AsyncValue<List<CustomerModel>>>(
         (ref) {
   final repository = ref.watch(customerRepositoryProvider);
-  return CustomersNotifier(repository);
+  return CustomersNotifier(repository, ref);
+});
+
+// ═══════════════════════════════════════════════════════════
+// RECENT ITEMS PROVIDERS (للاختيار السريع)
+// ═══════════════════════════════════════════════════════════
+
+/// آخر 5 عملاء تم التعامل معهم (بناءً على الفواتير الأخيرة)
+final recentCustomersProvider = Provider<List<CustomerModel>>((ref) {
+  final invoicesAsync = ref.watch(invoicesNotifierProvider);
+  final customersAsync = ref.watch(customersNotifierProvider);
+
+  final invoices = invoicesAsync.valueOrNull ?? [];
+  final customers = customersAsync.valueOrNull ?? [];
+
+  if (invoices.isEmpty || customers.isEmpty) return [];
+
+  // ترتيب الفواتير من الأحدث للأقدم
+  final sortedInvoices = List<InvoiceModel>.from(invoices)
+    ..sort((a, b) => b.date.compareTo(a.date));
+
+  // استخراج أسماء العملاء الفريدة
+  final recentCustomerNames = <String>{};
+  for (final invoice in sortedInvoices) {
+    if (recentCustomerNames.length >= 5) break;
+    recentCustomerNames.add(invoice.customerName);
+  }
+
+  // البحث عن العملاء المطابقين
+  final recentCustomers = <CustomerModel>[];
+  for (final name in recentCustomerNames) {
+    final customer = customers.firstWhere(
+      (c) => c.name == name,
+      orElse: () => CustomerModel(
+        id: '',
+        name: name,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    if (customer.id.isNotEmpty) {
+      recentCustomers.add(customer);
+    }
+  }
+
+  return recentCustomers;
+});
+
+/// آخر 5 منتجات تم استخدامها في الفواتير
+final recentProductsProvider = Provider<List<ProductModel>>((ref) {
+  final invoicesAsync = ref.watch(invoicesNotifierProvider);
+  final productsAsync = ref.watch(productsNotifierProvider);
+
+  final invoices = invoicesAsync.valueOrNull ?? [];
+  final products = productsAsync.valueOrNull ?? [];
+
+  if (invoices.isEmpty || products.isEmpty) return [];
+
+  // ترتيب الفواتير من الأحدث للأقدم
+  final sortedInvoices = List<InvoiceModel>.from(invoices)
+    ..sort((a, b) => b.date.compareTo(a.date));
+
+  // استخراج IDs المنتجات الفريدة
+  final recentProductIds = <String>{};
+  for (final invoice in sortedInvoices) {
+    for (final item in invoice.items) {
+      if (recentProductIds.length >= 5) break;
+      recentProductIds.add(item.productId);
+    }
+    if (recentProductIds.length >= 5) break;
+  }
+
+  // البحث عن المنتجات المطابقة
+  final recentProducts = <ProductModel>[];
+  for (final id in recentProductIds) {
+    final product = products.firstWhere(
+      (p) => p.id == id,
+      orElse: () => ProductModel(
+        id: '',
+        name: '',
+        sizeRange: '',
+        wholesalePrice: 0,
+        packagesCount: 0,
+        pairsPerPackage: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+    if (product.id.isNotEmpty) {
+      recentProducts.add(product);
+    }
+  }
+
+  return recentProducts;
 });

@@ -11,6 +11,7 @@ import '../../../core/services/pdf_service.dart';
 import '../../../data/models/invoice_model.dart';
 import '../../../data/models/company_model.dart';
 import '../providers/company_provider.dart';
+import '../providers/customer_providers.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// شاشة معاينة الفاتورة بصيغة PDF
@@ -133,8 +134,38 @@ class _InvoicePreviewScreenState extends ConsumerState<InvoicePreviewScreen> {
     });
 
     try {
+      // الحصول على بيانات العميل المحدثة للتحديث التلقائي
+      final customerId = widget.invoice.customerId;
+      final customerData = customerId != null
+          ? ref.read(customerDataProvider(customerId))
+          : null;
+
+      // إنشاء فاتورة محدثة ببيانات العميل الجديدة
+      final updatedInvoice = customerData != null
+          ? InvoiceModel(
+              id: widget.invoice.id,
+              invoiceNumber: widget.invoice.invoiceNumber,
+              customerId: widget.invoice.customerId,
+              customerName: customerData.name,
+              customerPhone: customerData.phone,
+              customerAddress: customerData.address,
+              date: widget.invoice.date,
+              items: widget.invoice.items,
+              subtotal: widget.invoice.subtotal,
+              discount: widget.invoice.discount,
+              totalUSD: widget.invoice.totalUSD,
+              exchangeRate: widget.invoice.exchangeRate,
+              totalIQD: widget.invoice.totalIQD,
+              notes: widget.invoice.notes,
+              createdAt: widget.invoice.createdAt,
+              barcodeValue: widget.invoice.barcodeValue,
+              paymentMethod: widget.invoice.paymentMethod,
+              paidAmount: widget.invoice.paidAmount,
+            )
+          : widget.invoice;
+
       final pdfBytes = await PdfService.generateInvoice(
-        widget.invoice,
+        updatedInvoice,
         company: company,
       );
 

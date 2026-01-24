@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
-import 'package:wholesale_shoes_invoice/presentation/screens/providers/providers.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/providers/customer_providers.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -21,7 +21,8 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customersAsync = ref.watch(customersNotifierProvider);
+    // استخدام Reactive Provider للتحديث التلقائي
+    final customersState = ref.watch(reactiveCustomersProvider);
 
     return Scaffold(
       appBar: const CustomAppBar(
@@ -54,30 +55,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           ),
           // Customers List
           Expanded(
-            child: customersAsync.when(
-              data: (customers) {
-                final filteredCustomers = _filterCustomers(customers);
-                if (filteredCustomers.isEmpty) {
-                  return _buildEmptyState();
-                }
-                return ListView.separated(
-                  padding: AppSpacing.paddingScreen,
-                  itemCount: filteredCustomers.length,
-                  separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
-                  itemBuilder: (context, index) {
-                    final customer = filteredCustomers[index];
-                    return _CustomerCard(
-                      customer: customer,
-                      onEdit: () =>
-                          _showAddEditDialog(context, ref, customer: customer),
-                      onDelete: () => _confirmDelete(context, ref, customer),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('خطأ: $e')),
-            ),
+            child: _buildCustomersList(customersState),
           ),
         ],
       ),
@@ -85,6 +63,38 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         onPressed: () => _showAddEditDialog(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('عميل جديد'),
+      ),
+    );
+  }
+
+  Widget _buildCustomersList(CustomersState customersState) {
+    if (customersState.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (customersState.error != null) {
+      return Center(child: Text('خطأ: ${customersState.error}'));
+    }
+
+    final filteredCustomers = _filterCustomers(customersState.customers);
+    if (filteredCustomers.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => ref.read(reactiveCustomersProvider.notifier).refresh(),
+      child: ListView.separated(
+        padding: AppSpacing.paddingScreen,
+        itemCount: filteredCustomers.length,
+        separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
+        itemBuilder: (context, index) {
+          final customer = filteredCustomers[index];
+          return _CustomerCard(
+            customer: customer,
+            onEdit: () => _showAddEditDialog(context, ref, customer: customer),
+            onDelete: () => _confirmDelete(context, ref, customer),
+          );
+        },
       ),
     );
   }
@@ -194,11 +204,11 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
                       if (isEditing) {
                         await ref
-                            .read(customersNotifierProvider.notifier)
+                            .read(reactiveCustomersProvider.notifier)
                             .updateCustomer(newCustomer);
                       } else {
                         await ref
-                            .read(customersNotifierProvider.notifier)
+                            .read(reactiveCustomersProvider.notifier)
                             .addCustomer(newCustomer);
                       }
 
@@ -282,7 +292,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
           FilledButton(
             onPressed: () async {
               await ref
-                  .read(customersNotifierProvider.notifier)
+                  .read(reactiveCustomersProvider.notifier)
                   .deleteCustomer(customer.id);
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(

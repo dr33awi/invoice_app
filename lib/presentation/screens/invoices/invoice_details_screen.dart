@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wholesale_shoes_invoice/core/services/pdf_service.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/providers/customer_providers.dart';
 import 'dart:io';
 
 import '../../../core/constants/app_colors.dart';
@@ -36,6 +37,16 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
   final _dateFormat = DateFormat('yyyy/MM/dd', 'en');
   final _timeFormat = DateFormat('hh:mm a', 'en');
   final _numberFormat = NumberFormat('#,###', 'en');
+
+  // استخدام getter للحصول على الفاتورة المحدثة
+  InvoiceModel get currentInvoice {
+    final invoicesAsync = ref.watch(invoicesNotifierProvider);
+    final invoices = invoicesAsync.valueOrNull ?? [];
+    return invoices.firstWhere(
+      (inv) => inv.id == widget.invoice.id,
+      orElse: () => widget.invoice,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,9 +82,18 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                 case 'save':
                   _savePdf(context);
                   break;
+                case 'duplicate':
+                  _duplicateInvoice(context);
+                  break;
               }
             },
             itemBuilder: (context) => [
+              _buildPopupMenuItem(
+                value: 'duplicate',
+                icon: Icons.copy_outlined,
+                label: 'تكرار الفاتورة',
+                color: AppColors.statusOnHold,
+              ),
               _buildPopupMenuItem(
                 value: 'preview',
                 icon: Icons.visibility_outlined,
@@ -291,6 +311,48 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
   // Edit & Delete Actions
   // ═══════════════════════════════════════════════════════════════════════════
 
+  /// تكرار الفاتورة - إنشاء فاتورة جديدة بنفس البيانات
+  void _duplicateInvoice(BuildContext context) async {
+    HapticFeedback.lightImpact();
+
+    // إنشاء نسخة من الفاتورة بدون ID ورقم الفاتورة
+    final duplicatedInvoice = InvoiceModel(
+      id: '', // سيتم إنشاء ID جديد
+      invoiceNumber: '', // سيتم إنشاء رقم جديد
+      customerName: widget.invoice.customerName,
+      customerPhone: widget.invoice.customerPhone,
+      customerAddress: widget.invoice.customerAddress,
+      customerId: widget.invoice.customerId,
+      date: DateTime.now(), // تاريخ جديد
+      items: List.from(widget.invoice.items), // نسخ المنتجات
+      subtotal: widget.invoice.subtotal,
+      discount: widget.invoice.discount,
+      totalUSD: widget.invoice.totalUSD,
+      exchangeRate: widget.invoice.exchangeRate,
+      totalIQD: widget.invoice.totalIQD,
+      paidAmount: 0, // بدون عربون
+      notes: widget.invoice.notes,
+      paymentMethod: widget.invoice.paymentMethod,
+      barcodeValue: '', // سيتم إنشاء باركود جديد
+    );
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateInvoiceScreen(invoice: duplicatedInvoice),
+      ),
+    );
+
+    if (result != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم إنشاء نسخة من الفاتورة'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+
   void _editInvoice(BuildContext context) async {
     final result = await Navigator.push(
       context,
@@ -308,6 +370,8 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_rounded,
+            color: AppColors.error, size: 48),
         title: const Text('حذف الفاتورة'),
         content: Text(
             'هل أنت متأكد من حذف الفاتورة "${widget.invoice.invoiceNumber}"؟\nهذا الإجراء لا يمكن التراجع عنه.'),
@@ -318,6 +382,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
           ),
           FilledButton(
             onPressed: () async {
+              HapticFeedback.mediumImpact();
               Navigator.pop(ctx);
               await ref
                   .read(invoicesNotifierProvider.notifier)
@@ -450,6 +515,20 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
   }
 
   Widget _buildCustomerCard(BuildContext context) {
+    final invoice = currentInvoice;
+
+    // ══════════════════════════════════════════════════════════════════════
+    // REACTIVE CUSTOMER DATA - تحديث تلقائي لبيانات العميل
+    // ══════════════════════════════════════════════════════════════════════
+    final customerId = invoice.customerId;
+    final customerData =
+        customerId != null ? ref.watch(customerDataProvider(customerId)) : null;
+
+    final customerName = customerData?.name ?? invoice.customerName;
+    final customerPhone = customerData?.phone ?? invoice.customerPhone;
+    final customerAddress = customerData?.address ?? invoice.customerAddress;
+    // ══════════════════════════════════════════════════════════════════════
+
     return Card(
       child: Padding(
         padding: AppSpacing.paddingCard,
@@ -474,8 +553,8 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                   ),
                   child: Center(
                     child: Text(
-                      widget.invoice.customerName.isNotEmpty
-                          ? widget.invoice.customerName[0].toUpperCase()
+                      customerName.isNotEmpty
+                          ? customerName[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
                         fontSize: 20,
@@ -491,18 +570,19 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        widget.invoice.customerName,
+                        customerName,
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
                             ?.copyWith(fontWeight: FontWeight.w600),
                       ),
-                      if (widget.invoice.customerPhone != null) ...[
+                      if (customerPhone != null &&
+                          customerPhone.isNotEmpty) ...[
                         AppSpacing.gapVerticalXs,
                         InkWell(
                           onTap: () {
-                            Clipboard.setData(ClipboardData(
-                                text: widget.invoice.customerPhone!));
+                            Clipboard.setData(
+                                ClipboardData(text: customerPhone));
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('تم نسخ رقم الهاتف'),
@@ -518,7 +598,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                                   size: 14, color: AppColors.textSecondary),
                               AppSpacing.gapHorizontalXs,
                               Text(
-                                widget.invoice.customerPhone!,
+                                customerPhone,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -533,8 +613,8 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                         ),
                       ],
                       // عرض العنوان إذا كان موجوداً
-                      if (widget.invoice.customerAddress != null &&
-                          widget.invoice.customerAddress!.isNotEmpty) ...[
+                      if (customerAddress != null &&
+                          customerAddress.isNotEmpty) ...[
                         AppSpacing.gapVerticalXs,
                         Row(
                           children: [
@@ -543,7 +623,7 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                             AppSpacing.gapHorizontalXs,
                             Expanded(
                               child: Text(
-                                widget.invoice.customerAddress!,
+                                customerAddress,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodyMedium

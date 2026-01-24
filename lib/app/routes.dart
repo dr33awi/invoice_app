@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:wholesale_shoes_invoice/presentation/screens/Categories/categories_screen.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/brands/brands_screen.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/categories/categories_screen.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/customers/customers_screen.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/splash/splash_screen.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/auth/auth_screens.dart';

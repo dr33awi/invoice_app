@@ -15,6 +15,7 @@ import '../../../data/models/brand_model.dart';
 import '../../../data/models/category_model.dart';
 import '../../../data/models/customer_model.dart';
 import '../providers/providers.dart';
+import '../providers/customer_providers.dart';
 
 class CreateInvoiceScreen extends ConsumerStatefulWidget {
   final InvoiceModel? invoice; // الفاتورة للتعديل (اختياري)
@@ -32,14 +33,20 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   final _discountController = TextEditingController(text: '0');
   final _paidAmountController = TextEditingController(text: '0'); // العربون
 
-  // بيانات العميل المختار
-  CustomerModel? _selectedCustomer;
+  // معرف العميل المختار - يستخدم للتحديث التلقائي
+  String? _selectedCustomerId;
+
+  // بيانات العميل المحلية (تستخدم كـ fallback)
   String? _customerName;
   String? _customerPhone;
   String? _customerAddress;
 
   // طريقة الدفع
   String _paymentMethod = InvoiceModel.paymentCash;
+
+  // سعر الصرف المخصص (للتعديل)
+  double? _customExchangeRate;
+  bool _useCustomExchangeRate = false;
 
   List<InvoiceItemModel> _items = [];
   bool _isSaving = false;
@@ -64,6 +71,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
 
   void _loadInvoiceData() {
     final invoice = widget.invoice!;
+    _selectedCustomerId = invoice.customerId;
     _customerName = invoice.customerName;
     _customerPhone = invoice.customerPhone;
     _customerAddress = invoice.customerAddress;
@@ -72,6 +80,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
     _paidAmountController.text = invoice.paidAmount.toString();
     _notesController.text = invoice.notes ?? '';
     _paymentMethod = invoice.paymentMethod;
+
+    // حفظ سعر الصرف الأصلي للفاتورة
+    _customExchangeRate = invoice.exchangeRate;
+    _useCustomExchangeRate = true;
   }
 
   @override
@@ -85,7 +97,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   @override
   Widget build(BuildContext context) {
     final exchangeRateAsync = ref.watch(exchangeRateNotifierProvider);
-    final exchangeRate = exchangeRateAsync.valueOrNull ?? 14500.0;
+    final currentExchangeRate = exchangeRateAsync.valueOrNull ?? 14500.0;
+
+    // استخدام سعر الصرف المخصص عند التعديل أو السعر الحالي للفواتير الجديدة
+    final exchangeRate = _useCustomExchangeRate && _customExchangeRate != null
+        ? _customExchangeRate!
+        : currentExchangeRate;
     final totalSYP = _totalUSD * exchangeRate;
 
     return Scaffold(
@@ -132,6 +149,16 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   }
 
   Widget _buildCustomerCard() {
+    // مراقبة بيانات العميل للتحديث التلقائي
+    final customerData = _selectedCustomerId != null
+        ? ref.watch(customerDataProvider(_selectedCustomerId!))
+        : null;
+
+    // استخدام بيانات العميل المحدثة أو البيانات المحلية كـ fallback
+    final displayName = customerData?.name ?? _customerName;
+    final displayPhone = customerData?.phone ?? _customerPhone;
+    final displayAddress = customerData?.address ?? _customerAddress;
+
     return Card(
       child: Padding(
         padding: AppSpacing.paddingCard,
@@ -157,11 +184,11 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_customerName != null)
+                      if (displayName != null)
                         IconButton(
                           icon: const Icon(Icons.clear, size: 18),
                           onPressed: () => setState(() {
-                            _selectedCustomer = null;
+                            _selectedCustomerId = null;
                             _customerName = null;
                             _customerPhone = null;
                             _customerAddress = null;
@@ -182,9 +209,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                   ),
                 ),
                 child: Text(
-                  _customerName ?? 'اختر العميل...',
+                  displayName ?? 'اختر العميل...',
                   style: TextStyle(
-                    color: _customerName != null
+                    color: displayName != null
                         ? AppColors.textPrimary
                         : AppColors.textMuted,
                     fontSize: 16,
@@ -192,8 +219,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                 ),
               ),
             ),
-            // عرض رقم الهاتف إذا كان موجوداً
-            if (_customerPhone != null && _customerPhone!.isNotEmpty) ...[
+            // عرض رقم الهاتف إذا كان موجوداً - محدث تلقائياً
+            if (displayPhone != null && displayPhone.isNotEmpty) ...[
               AppSpacing.gapVerticalSm,
               Container(
                 padding:
@@ -208,7 +235,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                         size: 18, color: AppColors.teal600),
                     AppSpacing.gapHorizontalSm,
                     Text(
-                      _customerPhone!,
+                      displayPhone,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.teal600,
                           ),
@@ -217,8 +244,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                 ),
               ),
             ],
-            // عرض العنوان إذا كان موجوداً
-            if (_customerAddress != null && _customerAddress!.isNotEmpty) ...[
+            // عرض العنوان إذا كان موجوداً - محدث تلقائياً
+            if (displayAddress != null && displayAddress.isNotEmpty) ...[
               AppSpacing.gapVerticalSm,
               Container(
                 padding:
@@ -234,7 +261,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                     AppSpacing.gapHorizontalSm,
                     Expanded(
                       child: Text(
-                        _customerAddress!,
+                        displayAddress,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.blue600,
                             ),
@@ -409,12 +436,12 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
 
                       // حفظ العميل في قاعدة البيانات
                       await ref
-                          .read(customersNotifierProvider.notifier)
+                          .read(reactiveCustomersProvider.notifier)
                           .addCustomer(newCustomer);
 
-                      // تحديد العميل الجديد
+                      // تحديد العميل الجديد باستخدام ID
                       setState(() {
-                        _selectedCustomer = newCustomer;
+                        _selectedCustomerId = newCustomer.id;
                         _customerName = name;
                         _customerPhone = phoneController.text.trim().isNotEmpty
                             ? phoneController.text.trim()
@@ -495,8 +522,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
   }
 
   void _showCustomerSelector() {
-    final customersAsync = ref.read(customersNotifierProvider);
-    final customers = customersAsync.valueOrNull ?? [];
+    // استخدام Reactive Provider للحصول على قائمة العملاء
+    final customersState = ref.read(reactiveCustomersProvider);
+    final customers = customersState.customers;
     String searchQuery = '';
 
     showModalBottomSheet(
@@ -615,7 +643,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                           itemBuilder: (context, index) {
                             final customer = filteredCustomers[index];
                             final isSelected =
-                                _selectedCustomer?.id == customer.id;
+                                _selectedCustomerId == customer.id;
                             return ListTile(
                               leading: Container(
                                 width: 40,
@@ -666,8 +694,9 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                                       color: AppColors.blue600)
                                   : null,
                               onTap: () {
+                                // حفظ معرف العميل للتحديث التلقائي
                                 setState(() {
-                                  _selectedCustomer = customer;
+                                  _selectedCustomerId = customer.id;
                                   _customerName = customer.name;
                                   _customerPhone = customer.phone;
                                   _customerAddress = customer.address;
@@ -949,13 +978,86 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
             _buildTotalRow(
                 'الإجمالي (SYP)', CurrencyFormatter.formatSYP(totalSYP),
                 isBold: true, valueColor: AppColors.teal600),
-            AppSpacing.gapVerticalXs,
-            Text(
-              'سعر الصرف: ${NumberFormat('#,###').format(exchangeRate)} ل.س/دولار',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textMuted),
+            AppSpacing.gapVerticalSm,
+            // سعر الصرف مع زر التعديل
+            InkWell(
+              onTap: () => _showExchangeRateDialog(exchangeRate),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _useCustomExchangeRate
+                      ? AppColors.warning.withOpacity(0.1)
+                      : AppColors.surfaceBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _useCustomExchangeRate
+                        ? AppColors.warning.withOpacity(0.3)
+                        : AppColors.borderColor,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.currency_exchange,
+                          size: 16,
+                          color: _useCustomExchangeRate
+                              ? AppColors.warning
+                              : AppColors.textMuted,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'سعر الصرف: ${NumberFormat('#,###').format(exchangeRate)} ل.س/دولار',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: _useCustomExchangeRate
+                                        ? AppColors.warning
+                                        : AppColors.textMuted,
+                                    fontWeight: _useCustomExchangeRate
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_useCustomExchangeRate) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'مخصص',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Icon(
+                          Icons.edit_outlined,
+                          size: 16,
+                          color: _useCustomExchangeRate
+                              ? AppColors.warning
+                              : AppColors.textMuted,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -992,6 +1094,100 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// عرض حوار تعديل سعر الصرف
+  void _showExchangeRateDialog(double currentRate) {
+    final controller =
+        TextEditingController(text: currentRate.toStringAsFixed(0));
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child:
+                  const Icon(Icons.currency_exchange, color: AppColors.warning),
+            ),
+            const SizedBox(width: 12),
+            const Text('تعديل سعر الصرف'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // حقل إدخال السعر
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'سعر الصرف (ل.س/دولار)',
+                prefixIcon: const Icon(Icons.monetization_on_outlined),
+                suffixText: 'ل.س',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            if (_isEditing && widget.invoice != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.teal600.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.history,
+                        size: 16, color: AppColors.teal600),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'سعر البيع الأصلي: ${NumberFormat('#,###').format(widget.invoice!.exchangeRate)} ل.س',
+                        style: const TextStyle(
+                          color: AppColors.teal600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          // زر تطبيق
+          FilledButton(
+            onPressed: () {
+              final newRate = double.tryParse(controller.text);
+              if (newRate != null && newRate > 0) {
+                setState(() {
+                  _customExchangeRate = newRate;
+                  _useCustomExchangeRate = true;
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('تطبيق'),
+          ),
+          // زر إلغاء
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2497,6 +2693,8 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
         final updatedInvoice = InvoiceModel(
           id: widget.invoice!.id,
           invoiceNumber: widget.invoice!.invoiceNumber,
+          customerId: _selectedCustomerId ??
+              widget.invoice!.customerId, // حفظ معرف العميل
           customerName: _customerName!,
           customerPhone: _customerPhone,
           customerAddress: _customerAddress,
@@ -2541,6 +2739,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
         final invoice = InvoiceModel(
           id: const Uuid().v4(),
           invoiceNumber: invoiceNumber,
+          customerId: _selectedCustomerId, // حفظ معرف العميل للتحديث التلقائي
           customerName: _customerName!,
           customerPhone: _customerPhone,
           customerAddress: _customerAddress,
