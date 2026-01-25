@@ -222,14 +222,7 @@ class _StatCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
+                _StatIconContainer(icon: icon, color: color),
                 const Spacer(),
               ],
             ),
@@ -247,6 +240,26 @@ class _StatCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Extracted static icon container for const optimization
+class _StatIconContainer extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _StatIconContainer({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: color, size: 20),
     );
   }
 }
@@ -278,14 +291,7 @@ class _ActionCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
+              _ActionIconContainer(icon: icon, color: color),
               const SizedBox(height: 6),
               Text(
                 title,
@@ -303,6 +309,26 @@ class _ActionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Extracted static icon container for const optimization
+class _ActionIconContainer extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _ActionIconContainer({required this.icon, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: color, size: 22),
     );
   }
 }

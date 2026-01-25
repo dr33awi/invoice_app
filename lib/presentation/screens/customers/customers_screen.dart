@@ -92,6 +92,7 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         itemBuilder: (context, index) {
           final customer = filteredCustomers[index];
           return _CustomerCard(
+            key: ValueKey(customer.id),
             customer: customer,
             onEdit: () => _showAddEditDialog(context, ref, customer: customer),
             onDelete: () => _confirmDelete(context, ref, customer),
@@ -318,6 +319,7 @@ class _CustomerCard extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _CustomerCard({
+    super.key,
     required this.customer,
     required this.onEdit,
     required this.onDelete,

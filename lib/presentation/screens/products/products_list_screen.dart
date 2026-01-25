@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
@@ -75,6 +74,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
                     itemBuilder: (context, index) {
                       final product = filteredProducts[index];
                       return _ProductCard(
+                        key: ValueKey(product.id),
                         product: product,
                         onEdit: () async {
                           final result = await Navigator.pushNamed(
@@ -207,8 +207,12 @@ class _ProductCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _ProductCard(
-      {required this.product, required this.onEdit, required this.onDelete});
+  const _ProductCard({
+    super.key,
+    required this.product,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {

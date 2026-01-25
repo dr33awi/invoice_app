@@ -8,7 +8,7 @@ import 'package:wholesale_shoes_invoice/presentation/screens/auth/auth_screens.d
 import '../core/utils/page_transitions.dart';
 import '../presentation/screens/home/home_screen.dart';
 import '../presentation/screens/invoices/invoices_list_screen.dart';
-import '../presentation/screens/invoices/create_invoice_screen.dart';
+import '../presentation/screens/invoices/create_invoice/create_invoice_screen.dart';
 import '../presentation/screens/invoices/invoice_details_screen.dart';
 import '../presentation/screens/products/products_list_screen.dart';
 import '../presentation/screens/products/add_product_screen.dart';

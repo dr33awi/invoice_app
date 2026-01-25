@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
-import 'package:wholesale_shoes_invoice/presentation/screens/providers/company_provider.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
@@ -15,7 +14,6 @@ import '../../../core/utils/date_formatter.dart';
 import '../../../core/utils/whatsapp_helper.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
-import '../providers/customer_providers.dart';
 
 class InvoicesListScreen extends ConsumerStatefulWidget {
   const InvoicesListScreen({super.key});
@@ -67,7 +65,10 @@ class _InvoicesListScreenState extends ConsumerState<InvoicesListScreen> {
                     separatorBuilder: (_, __) => AppSpacing.gapVerticalSm,
                     itemBuilder: (context, index) {
                       final invoice = filteredInvoices[index];
-                      return _InvoiceCard(invoice: invoice);
+                      return _InvoiceCard(
+                        key: ValueKey(invoice.id),
+                        invoice: invoice,
+                      );
                     },
                   );
                 },
@@ -293,19 +294,28 @@ class _InvoicesListScreenState extends ConsumerState<InvoicesListScreen> {
 class _InvoiceCard extends ConsumerWidget {
   final InvoiceModel invoice;
 
-  const _InvoiceCard({required this.invoice});
+  const _InvoiceCard({super.key, required this.invoice});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // مراقبة بيانات العميل للتحديث التلقائي
+    // مراقبة بيانات العميل للتحديث التلقائي باستخدام select لتقليل إعادة البناء
     final customerId = invoice.customerId;
-    final customerData =
-        customerId != null ? ref.watch(customerDataProvider(customerId)) : null;
+
+    // استخدام select() للحصول على الحقول المطلوبة فقط بدلاً من كل الكائن
+    final customerName = customerId != null
+        ? ref.watch(customerDataProvider(customerId).select((c) => c?.name))
+        : null;
+    final customerPhone = customerId != null
+        ? ref.watch(customerDataProvider(customerId).select((c) => c?.phone))
+        : null;
+    final customerAddress = customerId != null
+        ? ref.watch(customerDataProvider(customerId).select((c) => c?.address))
+        : null;
 
     // استخدام البيانات المحدثة أو البيانات المحفوظة في الفاتورة كـ fallback
-    final displayName = customerData?.name ?? invoice.customerName;
-    final displayPhone = customerData?.phone ?? invoice.customerPhone;
-    final displayAddress = customerData?.address ?? invoice.customerAddress;
+    final displayName = customerName ?? invoice.customerName;
+    final displayPhone = customerPhone ?? invoice.customerPhone;
+    final displayAddress = customerAddress ?? invoice.customerAddress;
 
     return Card(
       child: InkWell(
@@ -321,324 +331,380 @@ class _InvoiceCard extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header Row
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.blue600,
-                          AppColors.blue600.withOpacity(0.8),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      invoice.invoiceNumber,
-                      style: AppTypography.codeSmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  AppSpacing.gapHorizontalSm,
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle,
-                            size: 12, color: AppColors.success),
-                        const SizedBox(width: 4),
-                        Text(
-                          'مكتملة',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.success,
-                            fontSize: 10,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        DateFormatter.formatDateAr(invoice.date),
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      Text(
-                        DateFormat('hh:mm a', 'ar').format(invoice.date),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textMuted,
-                              fontSize: 10,
-                            ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              _InvoiceCardHeader(invoice: invoice),
               const Divider(height: 20),
 
               // Customer Info Row - محدث تلقائياً
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.teal600.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(
-                        displayName.isNotEmpty
-                            ? displayName[0].toUpperCase()
-                            : '?',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.teal600,
-                        ),
-                      ),
-                    ),
-                  ),
-                  AppSpacing.gapHorizontalMd,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                        if (displayPhone != null &&
-                            displayPhone.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.phone_outlined,
-                                size: 14,
-                                color: AppColors.textMuted,
-                              ),
-                              AppSpacing.gapHorizontalXs,
-                              Text(
-                                displayPhone,
-                                textDirection: TextDirection.ltr,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: AppColors.textSecondary),
-                              ),
-                              AppSpacing.gapHorizontalXs,
-                              // زر النسخ
-                              InkWell(
-                                onTap: () {
-                                  Clipboard.setData(
-                                      ClipboardData(text: displayPhone));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('تم نسخ رقم الهاتف'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
-                                },
-                                child: Icon(
-                                  Icons.copy,
-                                  size: 14,
-                                  color: AppColors.textMuted.withOpacity(0.7),
-                                ),
-                              ),
-                              AppSpacing.gapHorizontalXs,
-                              // زر الواتساب صغير
-                              InkWell(
-                                onTap: () async {
-                                  // الحصول على معلومات الشركة
-                                  final companyAsync =
-                                      ref.read(companyNotifierProvider);
-                                  final company = companyAsync.value;
-
-                                  final items = invoice.items
-                                      .map((item) => {
-                                            'name': item.productName,
-                                            'size': item.size,
-                                            'packagesCount': item.packagesCount,
-                                            'quantity': item.quantity,
-                                            'price': item.total,
-                                          })
-                                      .toList();
-
-                                  // حساب المبلغ المستحق
-                                  final dueAmount =
-                                      invoice.totalUSD - invoice.paidAmount;
-
-                                  final message =
-                                      WhatsAppHelper.createInvoiceMessage(
-                                    invoiceNumber: invoice.invoiceNumber,
-                                    customerName: displayName,
-                                    totalAmount: invoice.totalUSD,
-                                    currency: 'USD',
-                                    totalSYP: invoice.totalSYP,
-                                    items: items,
-                                    invoiceDate: invoice.date != null
-                                        ? '${invoice.date!.day}/${invoice.date!.month}/${invoice.date!.year}'
-                                        : null,
-                                    paidAmount: invoice.paidAmount,
-                                    dueAmount: dueAmount,
-                                    companyPhone: company?.phone,
-                                    websiteLink: company?.websiteLink,
-                                  );
-
-                                  final success = await WhatsAppHelper.openChat(
-                                    phoneNumber: displayPhone,
-                                    message: message,
-                                  );
-
-                                  if (!success && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('لا يمكن فتح الواتساب'),
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                },
-                                child: FaIcon(
-                                  FontAwesomeIcons.whatsapp,
-                                  size: 16,
-                                  color: const Color(0xFF25D366),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                        // عرض العنوان
-                        if (displayAddress != null &&
-                            displayAddress.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.location_on_outlined,
-                                size: 14,
-                                color: AppColors.textMuted,
-                              ),
-                              AppSpacing.gapHorizontalXs,
-                              Expanded(
-                                child: Text(
-                                  displayAddress,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                          color: AppColors.textSecondary),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
+              _InvoiceCardCustomerInfo(
+                displayName: displayName,
+                displayPhone: displayPhone,
+                displayAddress: displayAddress,
+                invoice: invoice,
               ),
 
               AppSpacing.gapVerticalSm,
 
               // Footer Row - Totals
-              Row(
-                children: [
-                  // USD Total
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.blue600.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.attach_money,
-                              size: 18, color: AppColors.blue600),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                CurrencyFormatter.formatUSD(invoice.totalUSD),
-                                style: AppTypography.moneyMedium.copyWith(
-                                  color: AppColors.blue600,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  // SYP Total
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.teal600.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text(
-                            'ل.س',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppColors.teal600,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                CurrencyFormatter.formatSYP(invoice.totalSYP),
-                                style: AppTypography.moneySmall.copyWith(
-                                  color: AppColors.teal600,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              _InvoiceCardTotals(invoice: invoice),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Header widget for invoice card - extracted for better performance
+class _InvoiceCardHeader extends StatelessWidget {
+  final InvoiceModel invoice;
+
+  const _InvoiceCardHeader({required this.invoice});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.blue600,
+                AppColors.blue600.withOpacity(0.8),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            invoice.invoiceNumber,
+            style: AppTypography.codeSmall.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        AppSpacing.gapHorizontalSm,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.success.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle,
+                  size: 12, color: AppColors.success),
+              const SizedBox(width: 4),
+              Text(
+                'مكتملة',
+                style: AppTypography.labelSmall.copyWith(
+                  color: AppColors.success,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Spacer(),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              DateFormatter.formatDateAr(invoice.date),
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(
+              DateFormat('hh:mm a', 'ar').format(invoice.date),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textMuted,
+                    fontSize: 10,
+                  ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Customer info widget for invoice card
+class _InvoiceCardCustomerInfo extends ConsumerWidget {
+  final String displayName;
+  final String? displayPhone;
+  final String? displayAddress;
+  final InvoiceModel invoice;
+
+  const _InvoiceCardCustomerInfo({
+    required this.displayName,
+    required this.displayPhone,
+    required this.displayAddress,
+    required this.invoice,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.teal600.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Center(
+            child: Text(
+              displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.teal600,
+              ),
+            ),
+          ),
+        ),
+        AppSpacing.gapHorizontalMd,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              if (displayPhone != null && displayPhone!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                _CustomerPhoneRow(
+                  displayPhone: displayPhone!,
+                  displayName: displayName,
+                  invoice: invoice,
+                ),
+              ],
+              if (displayAddress != null && displayAddress!.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
+                    AppSpacing.gapHorizontalXs,
+                    Expanded(
+                      child: Text(
+                        displayAddress!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: AppColors.textSecondary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Phone row with copy and WhatsApp buttons
+class _CustomerPhoneRow extends ConsumerWidget {
+  final String displayPhone;
+  final String displayName;
+  final InvoiceModel invoice;
+
+  const _CustomerPhoneRow({
+    required this.displayPhone,
+    required this.displayName,
+    required this.invoice,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        const Icon(
+          Icons.phone_outlined,
+          size: 14,
+          color: AppColors.textMuted,
+        ),
+        AppSpacing.gapHorizontalXs,
+        Text(
+          displayPhone,
+          textDirection: TextDirection.ltr,
+          style: Theme.of(context)
+              .textTheme
+              .bodySmall
+              ?.copyWith(color: AppColors.textSecondary),
+        ),
+        AppSpacing.gapHorizontalXs,
+        // زر النسخ
+        InkWell(
+          onTap: () {
+            Clipboard.setData(ClipboardData(text: displayPhone));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('تم نسخ رقم الهاتف'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+          },
+          child: Icon(
+            Icons.copy,
+            size: 14,
+            color: AppColors.textMuted.withOpacity(0.7),
+          ),
+        ),
+        AppSpacing.gapHorizontalXs,
+        // زر الواتساب صغير
+        InkWell(
+          onTap: () async {
+            // الحصول على معلومات الشركة
+            final companyAsync = ref.read(companyNotifierProvider);
+            final company = companyAsync.value;
+
+            final items = invoice.items
+                .map((item) => {
+                      'name': item.productName,
+                      'size': item.size,
+                      'packagesCount': item.packagesCount,
+                      'quantity': item.quantity,
+                      'price': item.total,
+                    })
+                .toList();
+
+            // حساب المبلغ المستحق
+            final dueAmount = invoice.totalUSD - invoice.paidAmount;
+
+            final message = WhatsAppHelper.createInvoiceMessage(
+              invoiceNumber: invoice.invoiceNumber,
+              customerName: displayName,
+              totalAmount: invoice.totalUSD,
+              currency: 'USD',
+              totalSYP: invoice.totalSYP,
+              items: items,
+              invoiceDate:
+                  '${invoice.date.day}/${invoice.date.month}/${invoice.date.year}',
+              paidAmount: invoice.paidAmount,
+              dueAmount: dueAmount,
+              companyPhone: company?.phone,
+              websiteLink: company?.websiteLink,
+            );
+
+            final success = await WhatsAppHelper.openChat(
+              phoneNumber: displayPhone,
+              message: message,
+            );
+
+            if (!success && context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا يمكن فتح الواتساب'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          },
+          child: const FaIcon(
+            FontAwesomeIcons.whatsapp,
+            size: 16,
+            color: Color(0xFF25D366),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Footer totals widget for invoice card
+class _InvoiceCardTotals extends StatelessWidget {
+  final InvoiceModel invoice;
+
+  const _InvoiceCardTotals({required this.invoice});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        // USD Total
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.blue600.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.attach_money,
+                    size: 18, color: AppColors.blue600),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      CurrencyFormatter.formatUSD(invoice.totalUSD),
+                      style: AppTypography.moneyMedium.copyWith(
+                        color: AppColors.blue600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // SYP Total
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.teal600.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'ل.س',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.teal600,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      CurrencyFormatter.formatSYP(invoice.totalSYP),
+                      style: AppTypography.moneySmall.copyWith(
+                        color: AppColors.teal600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

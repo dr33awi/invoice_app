@@ -4,8 +4,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 
 import '../../../data/models/company_model.dart';
 import '../../../core/services/firestore_service.dart';
-import '../../../core/services/realtime_sync_service.dart';
-import 'providers.dart';
+import '../../../core/services/unified_sync_service.dart';
+import 'core_providers.dart';
 
 /// Provider لبيانات الشركة مع دعم Firestore
 final companyNotifierProvider =
@@ -33,7 +33,7 @@ class CompanyNotifier extends AsyncNotifier<CompanyModel> {
     if (!enableFirestore) return;
 
     _syncSubscription =
-        ref.read(realtimeSyncServiceProvider).syncEvents.listen((event) {
+        ref.read(unifiedSyncServiceProvider).syncEvents.listen((event) {
       if (event.type == SyncEventType.companyInfoUpdated) {
         // تحديث البيانات عند استلام تحديث من Firestore
         _loadCompanyInfo().then((company) {

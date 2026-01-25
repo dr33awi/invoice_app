@@ -7,7 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wholesale_shoes_invoice/core/services/pdf_service.dart';
-import 'package:wholesale_shoes_invoice/presentation/screens/providers/customer_providers.dart';
+
 import 'dart:io';
 
 import '../../../core/constants/app_colors.dart';
@@ -18,8 +18,7 @@ import '../../../core/utils/whatsapp_helper.dart';
 import '../../../core/theme/widgets/custom_app_bar.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
-import '../providers/company_provider.dart';
-import 'create_invoice_screen.dart';
+import 'create_invoice/create_invoice_screen.dart';
 import 'invoice_preview_screen.dart';
 
 class InvoiceDetailsScreen extends ConsumerStatefulWidget {
@@ -651,9 +650,8 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                                   currency: 'USD',
                                   totalSYP: widget.invoice.totalSYP,
                                   items: items,
-                                  invoiceDate: widget.invoice.date != null
-                                      ? '${widget.invoice.date!.day}/${widget.invoice.date!.month}/${widget.invoice.date!.year}'
-                                      : null,
+                                  invoiceDate:
+                                      '${widget.invoice.date.day}/${widget.invoice.date.month}/${widget.invoice.date.year}',
                                   paidAmount: widget.invoice.paidAmount,
                                   dueAmount: dueAmount,
                                   companyPhone: company?.phone,

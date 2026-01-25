@@ -2,8 +2,9 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wholesale_shoes_invoice/data/models/customer_model.dart';
 import 'package:wholesale_shoes_invoice/data/repositories/customer_repository_new.dart';
-import 'package:wholesale_shoes_invoice/core/services/customer_sync_service.dart';
-import 'package:wholesale_shoes_invoice/presentation/screens/providers/providers.dart';
+import 'package:wholesale_shoes_invoice/core/services/unified_sync_service.dart';
+import 'core_providers.dart';
+import 'invoice_providers.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// Customer Reactive Providers
@@ -75,14 +76,14 @@ class CustomersState {
 /// StateNotifier للعملاء مع دعم التحديث التلقائي
 class ReactiveCustomersNotifier extends StateNotifier<CustomersState> {
   final CustomerRepository _repository;
-  final CustomerSyncService _syncService;
+  final UnifiedSyncService _syncService;
   final Ref _ref;
   StreamSubscription? _hiveSubscription;
   StreamSubscription? _syncSubscription;
 
   ReactiveCustomersNotifier({
     required CustomerRepository repository,
-    required CustomerSyncService syncService,
+    required UnifiedSyncService syncService,
     required Ref ref,
   })  : _repository = repository,
         _syncService = syncService,
@@ -105,7 +106,7 @@ class ReactiveCustomersNotifier extends StateNotifier<CustomersState> {
     });
 
     // الاستماع لأحداث المزامنة
-    _syncSubscription = _syncService.events.listen((event) {
+    _syncSubscription = _syncService.customerEvents.listen((event) {
       _handleSyncEvent(event);
     });
   }
@@ -292,7 +293,7 @@ final customerChangesProvider =
   yield currentState.getCustomerById(customerId);
 
   // الاستماع للتغييرات
-  await for (final event in syncService.events) {
+  await for (final event in syncService.customerEvents) {
     if (event.customer?.id == customerId ||
         event.type == CustomerSyncEventType.bulkUpdated) {
       final state = ref.read(reactiveCustomersProvider);
@@ -328,4 +329,77 @@ final customersCountProvider = Provider<int>((ref) {
 final totalCustomersDebtProvider = Provider<double>((ref) {
   final customers = ref.watch(customersListProvider);
   return customers.fold(0.0, (sum, c) => sum + c.balance);
+});
+
+// ═══════════════════════════════════════════════════════════
+// LEGACY CUSTOMERS NOTIFIER (للتوافق مع الشاشات القديمة)
+// ═══════════════════════════════════════════════════════════
+
+class CustomersNotifier extends StateNotifier<AsyncValue<List<CustomerModel>>> {
+  final CustomerRepository _repository;
+
+  CustomersNotifier(this._repository) : super(const AsyncValue.loading()) {
+    loadCustomers();
+  }
+
+  Future<void> loadCustomers({bool showLoading = true}) async {
+    if (showLoading && state.valueOrNull == null) {
+      state = const AsyncValue.loading();
+    }
+    try {
+      final customers = _repository.getAllCustomers();
+      state = AsyncValue.data(customers);
+    } catch (e, st) {
+      if (state.hasValue) {
+        state = AsyncValue.data(state.value!);
+      } else {
+        state = AsyncValue.error(e, st);
+      }
+    }
+  }
+
+  Future<void> refresh() => loadCustomers(showLoading: false);
+
+  Future<void> addCustomer(CustomerModel customer) async {
+    try {
+      await _repository.addCustomer(customer);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> updateCustomer(CustomerModel customer) async {
+    try {
+      await _repository.updateCustomer(customer);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    try {
+      await _repository.deleteCustomer(id);
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> syncFromCloud() async {
+    try {
+      await _repository.syncFromCloud();
+      await loadCustomers();
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+
+final customersNotifierProvider =
+    StateNotifierProvider<CustomersNotifier, AsyncValue<List<CustomerModel>>>(
+        (ref) {
+  final repository = ref.watch(customerRepositoryProvider);
+  return CustomersNotifier(repository);
 });

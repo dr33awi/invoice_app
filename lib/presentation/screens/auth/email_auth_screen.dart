@@ -481,7 +481,6 @@ class _PendingApprovalScreenState extends State<_PendingApprovalScreen> {
   final _approvalCodeController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
-  bool _isCheckingApproval = false;
 
   @override
   void initState() {
@@ -500,8 +499,6 @@ class _PendingApprovalScreenState extends State<_PendingApprovalScreen> {
     final userId = _authService.currentUserId;
     if (userId == null) return;
 
-    setState(() => _isCheckingApproval = true);
-
     try {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -518,10 +515,6 @@ class _PendingApprovalScreenState extends State<_PendingApprovalScreen> {
       }
     } catch (e) {
       // تجاهل الأخطاء في التحقق التلقائي
-    } finally {
-      if (mounted) {
-        setState(() => _isCheckingApproval = false);
-      }
     }
   }
 

@@ -19,7 +19,23 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase with options
+  // Run critical initializations in parallel for faster startup
+  await Future.wait([
+    _initializeFirebase(),
+    _initializeHive(),
+  ]);
+
+  logger.info('App started successfully', tag: 'App');
+
+  runApp(
+    const ProviderScope(
+      child: WholesaleShoesApp(),
+    ),
+  );
+}
+
+/// Initialize Firebase and Firestore
+Future<void> _initializeFirebase() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -31,11 +47,31 @@ void main() async {
     logger.warning('Firebase initialization failed: $e', tag: 'App');
     logger.info('App will work in offline mode only', tag: 'App');
   }
+}
 
+/// Initialize Hive and open boxes
+Future<void> _initializeHive() async {
   // Initialize Hive
   await Hive.initFlutter();
 
-  // Register Hive Adapters
+  // Register all Hive Adapters
+  _registerHiveAdapters();
+
+  // Open Hive Boxes in parallel for faster startup
+  await Future.wait([
+    Hive.openBox<ProductModel>('products'),
+    Hive.openBox<InvoiceModel>('invoices'),
+    Hive.openBox<SyncMetadata>('sync_queue'),
+    Hive.openBox<CategoryModel>('categories'),
+    Hive.openBox<BrandModel>('brands'),
+    Hive.openBox<CustomerModel>('customers'),
+    Hive.openBox<PaymentModel>('payments'),
+    Hive.openBox('settings'),
+  ]);
+}
+
+/// Register all Hive adapters
+void _registerHiveAdapters() {
   Hive.registerAdapter(ProductModelAdapter());
   Hive.registerAdapter(ProductSizeModelAdapter());
   Hive.registerAdapter(InvoiceModelAdapter());
@@ -47,22 +83,4 @@ void main() async {
   Hive.registerAdapter(CategoryModelAdapter());
   Hive.registerAdapter(BrandModelAdapter());
   Hive.registerAdapter(CustomerModelAdapter());
-
-  // Open Hive Boxes
-  await Hive.openBox<ProductModel>('products');
-  await Hive.openBox<InvoiceModel>('invoices');
-  await Hive.openBox<SyncMetadata>('sync_queue');
-  await Hive.openBox<CategoryModel>('categories');
-  await Hive.openBox<BrandModel>('brands');
-  await Hive.openBox<CustomerModel>('customers');
-  await Hive.openBox<PaymentModel>('payments');
-  await Hive.openBox('settings');
-
-  logger.info('App started successfully', tag: 'App');
-
-  runApp(
-    const ProviderScope(
-      child: WholesaleShoesApp(),
-    ),
-  );
 }
