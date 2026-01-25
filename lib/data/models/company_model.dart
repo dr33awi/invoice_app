@@ -48,6 +48,9 @@ class CompanyModel extends HiveObject {
   @HiveField(13)
   final String invoicePrefix; // INV
 
+  @HiveField(14)
+  final String? websiteLink; // رابط موقع الويب
+
   @HiveField(4)
   final DateTime updatedAt;
 
@@ -65,6 +68,7 @@ class CompanyModel extends HiveObject {
     this.termsAndConditions,
     this.defaultCurrency = 'USD',
     this.invoicePrefix = 'INV',
+    this.websiteLink,
     required this.updatedAt,
   });
 
@@ -109,6 +113,7 @@ class CompanyModel extends HiveObject {
       termsAndConditions: data['termsAndConditions'],
       defaultCurrency: data['defaultCurrency'] ?? 'USD',
       invoicePrefix: data['invoicePrefix'] ?? 'INV',
+      websiteLink: data['websiteLink'] ?? data['whatsappContactLink'],
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -127,6 +132,7 @@ class CompanyModel extends HiveObject {
     String? termsAndConditions,
     String? defaultCurrency,
     String? invoicePrefix,
+    String? websiteLink,
     DateTime? updatedAt,
   }) {
     return CompanyModel(
@@ -143,6 +149,7 @@ class CompanyModel extends HiveObject {
       termsAndConditions: termsAndConditions ?? this.termsAndConditions,
       defaultCurrency: defaultCurrency ?? this.defaultCurrency,
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
+      websiteLink: websiteLink ?? this.websiteLink,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -162,6 +169,7 @@ class CompanyModel extends HiveObject {
       'termsAndConditions': termsAndConditions,
       'defaultCurrency': defaultCurrency,
       'invoicePrefix': invoicePrefix,
+      'websiteLink': websiteLink,
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
@@ -181,6 +189,7 @@ class CompanyModel extends HiveObject {
       'termsAndConditions': termsAndConditions,
       'defaultCurrency': defaultCurrency,
       'invoicePrefix': invoicePrefix,
+      'websiteLink': websiteLink,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -200,6 +209,7 @@ class CompanyModel extends HiveObject {
       termsAndConditions: json['termsAndConditions'],
       defaultCurrency: json['defaultCurrency'] ?? 'USD',
       invoicePrefix: json['invoicePrefix'] ?? 'INV',
+      websiteLink: json['websiteLink'] ?? json['whatsappContactLink'],
       updatedAt: json['updatedAt'] != null
           ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),

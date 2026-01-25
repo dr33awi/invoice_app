@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:wholesale_shoes_invoice/core/services/pdf_service.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/providers/customer_providers.dart';
@@ -13,6 +14,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/utils/whatsapp_helper.dart';
 import '../../../core/theme/widgets/custom_app_bar.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
@@ -579,37 +581,133 @@ class _InvoiceDetailsScreenState extends ConsumerState<InvoiceDetailsScreen> {
                       if (customerPhone != null &&
                           customerPhone.isNotEmpty) ...[
                         AppSpacing.gapVerticalXs,
-                        InkWell(
-                          onTap: () {
-                            Clipboard.setData(
-                                ClipboardData(text: customerPhone));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('تم نسخ رقم الهاتف'),
-                                duration: Duration(seconds: 1),
+                        Row(
+                          children: [
+                            // زر نسخ رقم الهاتف
+                            InkWell(
+                              onTap: () {
+                                Clipboard.setData(
+                                    ClipboardData(text: customerPhone));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('تم نسخ رقم الهاتف'),
+                                    duration: Duration(seconds: 1),
+                                  ),
+                                );
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.phone_outlined,
+                                      size: 14, color: AppColors.textSecondary),
+                                  AppSpacing.gapHorizontalXs,
+                                  Text(
+                                    customerPhone,
+                                    textDirection: TextDirection.ltr,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                            color: AppColors.textSecondary),
+                                  ),
+                                  AppSpacing.gapHorizontalXs,
+                                  Icon(Icons.copy,
+                                      size: 12,
+                                      color:
+                                          AppColors.textMuted.withOpacity(0.7)),
+                                ],
                               ),
-                            );
-                          },
-                          borderRadius: BorderRadius.circular(6),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.phone_outlined,
-                                  size: 14, color: AppColors.textSecondary),
-                              AppSpacing.gapHorizontalXs,
-                              Text(
-                                customerPhone,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(color: AppColors.textSecondary),
+                            ),
+                            AppSpacing.gapHorizontalSm,
+                            // زر الواتساب
+                            InkWell(
+                              onTap: () async {
+                                // الحصول على معلومات الشركة
+                                final companyAsync =
+                                    ref.read(companyNotifierProvider);
+                                final company = companyAsync.value;
+
+                                // إنشاء الرسالة
+                                final items = widget.invoice.items
+                                    .map((item) => {
+                                          'name': item.productName,
+                                          'size': item.size,
+                                          'packagesCount': item.packagesCount,
+                                          'quantity': item.quantity,
+                                          'price': item.total,
+                                        })
+                                    .toList();
+
+                                // حساب المبلغ المستحق
+                                final dueAmount = widget.invoice.totalUSD -
+                                    widget.invoice.paidAmount;
+
+                                final message =
+                                    WhatsAppHelper.createInvoiceMessage(
+                                  invoiceNumber: widget.invoice.invoiceNumber,
+                                  customerName: customerName,
+                                  totalAmount: widget.invoice.totalUSD,
+                                  currency: 'USD',
+                                  totalSYP: widget.invoice.totalSYP,
+                                  items: items,
+                                  invoiceDate: widget.invoice.date != null
+                                      ? '${widget.invoice.date!.day}/${widget.invoice.date!.month}/${widget.invoice.date!.year}'
+                                      : null,
+                                  paidAmount: widget.invoice.paidAmount,
+                                  dueAmount: dueAmount,
+                                  companyPhone: company?.phone,
+                                  websiteLink: company?.websiteLink,
+                                );
+
+                                // إرسال رسالة مباشرة
+                                final success = await WhatsAppHelper.openChat(
+                                  phoneNumber: customerPhone,
+                                  message: message,
+                                );
+
+                                if (!success && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('لا يمكن فتح الواتساب'),
+                                      duration: Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color:
+                                      const Color(0xFF25D366).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFF25D366)
+                                        .withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    FaIcon(FontAwesomeIcons.whatsapp,
+                                        size: 14,
+                                        color: const Color(0xFF25D366)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'واتساب',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: const Color(0xFF25D366),
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              AppSpacing.gapHorizontalXs,
-                              Icon(Icons.copy,
-                                  size: 12,
-                                  color: AppColors.textMuted.withOpacity(0.7)),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                       // عرض العنوان إذا كان موجوداً

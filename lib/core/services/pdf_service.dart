@@ -589,6 +589,7 @@ class PdfService {
                 if (companyPhone != null && companyPhone.isNotEmpty) ...[
                   pw.Text(
                     companyPhone,
+                    textDirection: pw.TextDirection.ltr,
                     style: pw.TextStyle(
                       font: _mono,
                       fontFallback: _fontFallback,
@@ -817,7 +818,7 @@ class PdfService {
             _buildInfoRowRTL('اسم العميل', customerName),
             pw.SizedBox(height: 6),
             if (customerPhone != null && customerPhone.isNotEmpty)
-              _buildInfoRowRTL('رقم الهاتف', customerPhone),
+              _buildInfoRowRTL('رقم الهاتف', customerPhone, isLtr: true),
             if (customerAddress != null && customerAddress.isNotEmpty) ...[
               pw.SizedBox(height: 6),
               _buildInfoRowRTL('العنوان', customerAddress)
@@ -828,7 +829,8 @@ class PdfService {
     );
   }
 
-  static pw.Widget _buildInfoRowRTL(String label, String value) {
+  static pw.Widget _buildInfoRowRTL(String label, String value,
+      {bool isLtr = false}) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.end,
       mainAxisSize: pw.MainAxisSize.min,
@@ -837,12 +839,12 @@ class PdfService {
           pw.Text(
             value,
             style: pw.TextStyle(
-              font: _arabicRegular,
+              font: isLtr ? _mono : _arabicRegular,
               fontFallback: _fontFallback,
               fontSize: 11,
               color: _black,
             ),
-            textDirection: pw.TextDirection.rtl,
+            textDirection: isLtr ? pw.TextDirection.ltr : pw.TextDirection.rtl,
           ),
         pw.SizedBox(width: 5),
         pw.Text(

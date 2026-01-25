@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -236,6 +236,7 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                     AppSpacing.gapHorizontalSm,
                     Text(
                       displayPhone,
+                      textDirection: TextDirection.ltr,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: AppColors.teal600,
                           ),
@@ -685,7 +686,10 @@ class _CreateInvoiceScreenState extends ConsumerState<CreateInvoiceScreen> {
                                             size: 14,
                                             color: AppColors.textMuted),
                                         const SizedBox(width: 4),
-                                        Text(customer.phone!),
+                                        Text(
+                                          customer.phone!,
+                                          textDirection: TextDirection.ltr,
+                                        ),
                                       ],
                                     )
                                   : null,

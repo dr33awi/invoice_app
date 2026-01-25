@@ -26,6 +26,7 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
   final _subtitleController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _websiteLinkController = TextEditingController();
 
   bool _isSaving = false;
   bool _isLoaded = false;
@@ -38,6 +39,7 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
     _subtitleController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
+    _websiteLinkController.dispose();
     super.dispose();
   }
 
@@ -47,6 +49,7 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
       _subtitleController.text = company.subtitle ?? '';
       _phoneController.text = company.phone ?? '';
       _addressController.text = company.address ?? '';
+      _websiteLinkController.text = company.websiteLink ?? '';
       _logoPath = company.logoPath;
       _isLoaded = true;
     }
@@ -474,6 +477,18 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
               ),
               onChanged: (_) => setState(() {}),
             ),
+            AppSpacing.gapVerticalMd,
+            TextFormField(
+              controller: _websiteLinkController,
+              decoration: const InputDecoration(
+                labelText: 'رابط موقع الويب',
+                prefixIcon: Icon(Icons.language_outlined),
+                hintText: 'مثال: https://example.com',
+                helperText: 'سيظهر في نهاية رسالة الفاتورة',
+              ),
+              keyboardType: TextInputType.url,
+              onChanged: (_) => setState(() {}),
+            ),
           ],
         ),
       ),
@@ -569,6 +584,9 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
         address: _addressController.text.trim().isNotEmpty
             ? _addressController.text.trim()
             : null,
+        websiteLink: _websiteLinkController.text.trim().isNotEmpty
+            ? _websiteLinkController.text.trim()
+            : null,
         updatedAt: DateTime.now(),
         logoPath: _logoPath,
       );
@@ -620,6 +638,7 @@ class _CompanySettingsScreenState extends ConsumerState<CompanySettingsScreen> {
                 _subtitleController.text = CompanyModel.defaultSubtitle;
                 _phoneController.text = CompanyModel.defaultPhone ?? '';
                 _addressController.text = CompanyModel.defaultAddress ?? '';
+                _websiteLinkController.text = '';
                 _logoPath = null;
               });
             },
@@ -737,6 +756,7 @@ class _InvoiceHeaderPreview extends StatelessWidget {
                 if (companyPhone != null && companyPhone!.isNotEmpty) ...[
                   Text(
                     companyPhone!,
+                    textDirection: TextDirection.ltr,
                     style: const TextStyle(
                       fontSize: 7,
                       color: Colors.white,

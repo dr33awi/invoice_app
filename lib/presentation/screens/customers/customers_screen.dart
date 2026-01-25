@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
 import 'package:wholesale_shoes_invoice/presentation/screens/providers/customer_providers.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/utils/whatsapp_helper.dart';
 import '../../../data/models/customer_model.dart';
 
 class CustomersScreen extends ConsumerStatefulWidget {
@@ -369,10 +371,53 @@ class _CustomerCard extends StatelessWidget {
                         AppSpacing.gapHorizontalXs,
                         Text(
                           customer.phone!,
+                          textDirection: TextDirection.ltr,
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
                               ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        AppSpacing.gapHorizontalXs,
+                        // زر النسخ
+                        InkWell(
+                          onTap: () {
+                            Clipboard.setData(
+                                ClipboardData(text: customer.phone!));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم نسخ رقم الهاتف'),
+                                duration: Duration(seconds: 1),
+                              ),
+                            );
+                          },
+                          child: Icon(
+                            Icons.copy,
+                            size: 14,
+                            color: AppColors.textMuted.withOpacity(0.7),
+                          ),
+                        ),
+                        AppSpacing.gapHorizontalXs,
+                        // زر الواتساب
+                        InkWell(
+                          onTap: () async {
+                            final success = await WhatsAppHelper.openChat(
+                              phoneNumber: customer.phone!,
+                            );
+
+                            if (!success && context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('لا يمكن فتح الواتساب'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          },
+                          child: FaIcon(
+                            FontAwesomeIcons.whatsapp,
+                            size: 16,
+                            color: const Color(0xFF25D366),
+                          ),
                         ),
                       ],
                     ),

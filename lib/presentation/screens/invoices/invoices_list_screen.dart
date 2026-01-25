@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:intl/intl.dart' hide TextDirection;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:wholesale_shoes_invoice/core/theme/widgets/custom_app_bar.dart';
+import 'package:wholesale_shoes_invoice/presentation/screens/providers/company_provider.dart';
 
 import '../../../app/routes.dart';
 import '../../../core/constants/app_colors.dart';
@@ -9,6 +12,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../core/utils/date_formatter.dart';
+import '../../../core/utils/whatsapp_helper.dart';
 import '../../../data/models/invoice_model.dart';
 import '../providers/providers.dart';
 import '../providers/customer_providers.dart';
@@ -434,10 +438,90 @@ class _InvoiceCard extends ConsumerWidget {
                               AppSpacing.gapHorizontalXs,
                               Text(
                                 displayPhone,
+                                textDirection: TextDirection.ltr,
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
                                     ?.copyWith(color: AppColors.textSecondary),
+                              ),
+                              AppSpacing.gapHorizontalXs,
+                              // زر النسخ
+                              InkWell(
+                                onTap: () {
+                                  Clipboard.setData(
+                                      ClipboardData(text: displayPhone));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('تم نسخ رقم الهاتف'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                                child: Icon(
+                                  Icons.copy,
+                                  size: 14,
+                                  color: AppColors.textMuted.withOpacity(0.7),
+                                ),
+                              ),
+                              AppSpacing.gapHorizontalXs,
+                              // زر الواتساب صغير
+                              InkWell(
+                                onTap: () async {
+                                  // الحصول على معلومات الشركة
+                                  final companyAsync =
+                                      ref.read(companyNotifierProvider);
+                                  final company = companyAsync.value;
+
+                                  final items = invoice.items
+                                      .map((item) => {
+                                            'name': item.productName,
+                                            'size': item.size,
+                                            'packagesCount': item.packagesCount,
+                                            'quantity': item.quantity,
+                                            'price': item.total,
+                                          })
+                                      .toList();
+
+                                  // حساب المبلغ المستحق
+                                  final dueAmount =
+                                      invoice.totalUSD - invoice.paidAmount;
+
+                                  final message =
+                                      WhatsAppHelper.createInvoiceMessage(
+                                    invoiceNumber: invoice.invoiceNumber,
+                                    customerName: displayName,
+                                    totalAmount: invoice.totalUSD,
+                                    currency: 'USD',
+                                    totalSYP: invoice.totalSYP,
+                                    items: items,
+                                    invoiceDate: invoice.date != null
+                                        ? '${invoice.date!.day}/${invoice.date!.month}/${invoice.date!.year}'
+                                        : null,
+                                    paidAmount: invoice.paidAmount,
+                                    dueAmount: dueAmount,
+                                    companyPhone: company?.phone,
+                                    websiteLink: company?.websiteLink,
+                                  );
+
+                                  final success = await WhatsAppHelper.openChat(
+                                    phoneNumber: displayPhone,
+                                    message: message,
+                                  );
+
+                                  if (!success && context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('لا يمكن فتح الواتساب'),
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: FaIcon(
+                                  FontAwesomeIcons.whatsapp,
+                                  size: 16,
+                                  color: const Color(0xFF25D366),
+                                ),
                               ),
                             ],
                           ),
